@@ -13,11 +13,11 @@ from p2d_main_fn import p2d_fn
 #from res_fn_order2 import fn
 from residual import ResidualFunction
 
-#Np = 10
-#Nn = 10
-#Mp = 10
+#Np = 20
+#Nn = 20
+#Mp = 20
 #Ms = 10
-#Mn = 10
+#Mn = 20
 #Ma = 5
 #Mz = 5
 Np = 30

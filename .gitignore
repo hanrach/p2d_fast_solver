@@ -1,5 +1,5 @@
 __pycache__/
 *.py[cod]
 *$py.class
-
+/tmp
 .DS_Store

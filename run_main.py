@@ -20,11 +20,11 @@ from residual import ResidualFunction
 #Mn = 10
 #Ma = 5
 #Mz = 5
-Np = 20
-Nn = 20
-Mp = 20
-Ms = 20
-Mn = 20
+Np = 30
+Nn = 30
+Mp = 30
+Ms = 10
+Mn = 30
 Ma = 5
 Mz = 5
 
@@ -33,3 +33,6 @@ fn = solver.fn
 jac_fn = jax.jit(jacfwd(fn))
 fn = jax.jit(fn)
 U, voltages, temps,time= p2d_fn(Np, Nn, Mp, Mn, Ms, Ma,Mz,fn,jac_fn)
+print("Finished process.\n")
+print("Time for the solver:",time)
+print("Voltages", voltages)

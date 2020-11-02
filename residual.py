@@ -47,34 +47,7 @@ class ResidualFunction:
         self.zccq = CurrentCollectorEquation(z_cc_constants(),cc_grid_param(Mz))
         
         
-#        up0, usep0, un0, jp0, jn0, etap0, etan0, phisp0, phisn0, phiep0, phiesep0, phien0,\
-#        ta0, tp0, tsep0, tn0, tz0 = self.set_index_order( Mp, Np,  Mn, Nn, Ms, Ma, Mz)
-#        
-#        self.up0 =  up0
-#        self.usep0 = usep0
-#        self.un0 = un0
-#        
-#        self.jp0 = jp0
-#        self.jn0 = jn0
-#        
-#        self.etap0 = etap0
-#        self.etan0 = etan0
-#        
-#        self.phisp0 = phisp0
-#        self.phisn0 = phisn0
-#        
-#        
-#        self.phiep0 = phiep0
-#        self.phiesep0 = phiesep0
-#        self.phien0 = phien0
-#        
-#        
-#        self.ta0 = ta0
-#        self.tp0 = tp0
-#        self.tsep0 = tsep0
-#        self.tn0 = tn0
-#        self.tz0 = tz0
-    
+
         self.up0 =  Mp*(Np+2) + Mn*(Nn+2)
         self.usep0 = self.up0 + Mp + 2
         self.un0 = self.usep0  + Ms+2
@@ -99,45 +72,11 @@ class ResidualFunction:
         self.tsep0 = self.tp0 + Mp+2
         self.tn0 = self.tsep0+ Ms+2
         self.tz0 = self.tn0 + Mn+2
-        
-#    def set_index_order(self, Mp, Np,  Mn, Nn, Ms, Ma, Mz):
-#        up0 =  Mp*(Np+2) + Mn*(Nn+2)
-#        usep0 = up0 + Mp + 2
-#        un0 = usep0  + Ms+2
-#        
-#        jp0 = un0 + Mn + 2
-#        jn0 = jp0 + Mp
-#        
-#        etap0 = jn0 + Mn 
-#        etan0 = etap0 + Mp
-#        
-#        phisp0 = etan0 + Mn
-#        phisn0 = phisp0 + Mp + 2
-#        
-#        
-#        phiep0 = phisn0 + Mn +2
-#        phiesep0 = phiep0 + Mp + 2
-#        phien0 = phiesep0 + Ms + 2
-#        
-#        
-#        ta0 = phien0 + Mn + 2
-#        tp0 = ta0 + Ma+2
-#        tsep0 = tp0 + Mp+2
-#        tn0 = tsep0+ Ms+2
-#        tz0 = tn0 + Mn+2
-#        
-#        return up0, usep0, un0, jp0, jn0, etap0, etan0, phisp0, phisn0, phiep0, phiesep0, phien0, ta0, tp0, tsep0, tn0, tz0
-#            
                             
 #    @jax.jit
     @partial(jax.jit, static_argnums=(0,))
     def res_c_fn(self, val, cmat_pe, jvec_pe, Tvec_pe, cmat_old_pe, cmat_ne, jvec_ne, Tvec_ne, cmat_old_ne):
-    #    rpts_end = pe.Rp*np.linspace(0,Np, Np+1)/Np
-    #    rpts_mid = pe.Rp*(np.linspace(1,Np, Np)-0.5)/Np
-        
-    #    val = jax.ops.index_update(val, jax.ops.index[np.arange(0,Mp)*(Np+2)], vmap(peq.bc_zero_neumann)(cmat_pe[0,0:Mp], cmat_pe[1,0:Mp]))
-    #    val = jax.ops.index_update(val, jax.ops.index[np.arange(0,Mp)*(Np+2) + Np+1], vmap(peq.bc_neumann_c)(cmat_pe[Np, 0:Mp], cmat_pe[Np+1, 0:Mp],
-    #                              jvec_pe[0:Mp],Tvec_pe[1:Mp+1]) )
+  
         Mp = self.Mp
         Np = self.Np
         peq = self.peq
@@ -151,12 +90,7 @@ class ResidualFunction:
             val = jax.ops.index_update(val, jax.ops.index[i*(Np+2)+1 : Np+1 + i*(Np+2) ], res_c)
         
         """ negative """    
-    #    val = jax.ops.index_update(val, jax.ops.index[Mp*(Np+2) + np.arange(0,Mn)*(Nn+2)], vmap(neq.bc_zero_neumann)(cmat_ne[0,0:Mn], cmat_ne[1,0:Mn]))
-    #    val = jax.ops.index_update(val, jax.ops.index[Mp*(Np+2) + np.arange(0,Mn)*(Nn+2) + Nn+1], vmap(neq.bc_neumann_c)(cmat_ne[Nn, 0:Mn], cmat_ne[Nn+1, 0:Mn],
-    #                              jvec_ne[0:Mn],Tvec_ne[1:Mn+1]) )
-        
-    #    rpts_end = ne.Rp*np.linspace(0,Nn, Nn+1)/Nn
-    #    rpts_mid = ne.Rp*(np.linspace(1,Nn, Nn)-0.5)/Nn
+   
         for i in range(0,Mn):
             val = jax.ops.index_update(val, jax.ops.index[Mp*(Np+2) + i*(Nn+2)], neq.bc_zero_neumann(cmat_ne[0,i], cmat_ne[1,i]) )
             val = jax.ops.index_update(val, jax.ops.index[Mp*(Np+2) + i*(Nn+2) + Nn+1], neq.bc_neumann_c(cmat_ne[Nn,i], cmat_ne[Nn+1,i], jvec_ne[i], Tvec_ne[i+1])) 
@@ -242,12 +176,7 @@ class ResidualFunction:
                                    Tvec[0:Mp], Tvec[1:Mp+1], Tvec[2:Mp+2], \
                                    jvec[0:Mp], etavec[0:Mp], cmat[Np, :], cmat[Np+1, :], peq.cmax*np.ones(Mp), Tvec_old[1:Mp+1]))
     
-    #    val = jax.ops.index_update(val, jax.ops.index[tp0 + 1: tp0 + Mp + 1],\
-    #                               vmap(peq.temperature_phi)(uvec[0:Mp], uvec[1:Mp+1], uvec[2:Mp+2],\
-    #                                   phievec[0:Mp], phievec[1:Mp+1], phievec[2:Mp+2],\
-    #                                   phisvec[0:Mp], phisvec[1:Mp+1], phisvec[2:Mp+2],\
-    #                                   Tvec[0:Mp], Tvec[1:Mp+1], Tvec[2:Mp+2], \
-    #                                   jvec[0:Mp], cmat[Np, :], cmat[Np+1, :], pe.cmax*np.ones(Mp), Tvec_old[1:Mp+1]))
+  
         val = jax.ops.index_update(val, jax.ops.index[tp0 + Mp + 1], peq.bc_temp_ps(Tvec[Mp], Tvec[Mp+1], Tvec_sep[0], Tvec_sep[1]))
         return val
     
@@ -283,12 +212,7 @@ class ResidualFunction:
                                    Tvec[0:Mn], Tvec[1:Mn+1], Tvec[2:Mn+2], \
                                    jvec[0:Mn], etavec[0:Mn], cmat[Nn, :], cmat[Nn+1, :], neq.cmax*np.ones(Mn), Tvec_old[1:Mn+1]))
     
-    #    val = jax.ops.index_update(val, jax.ops.index[tn0 + 1: tn0+ 1 + Mn],\
-    #                               vmap(neq.temperature)(uvec[0:Mn], uvec[1:Mn+1], uvec[2:Mn+2],\
-    #                                   phievec[0:Mn], phievec[1:Mn+1], phievec[2:Mn+2],\
-    #                                   phisvec[0:Mn], phisvec[1:Mn+1], phisvec[2:Mn+2],\
-    #                                   Tvec[0:Mn], Tvec[1:Mn+1], Tvec[2:Mn+2], \
-    #                                   jvec[0:Mn], cmat[Np, :], cmat[Np+1, :], pe.cmax*np.ones(Mn), Tvec_old[1:Mn+1]))
+
     
         val = jax.ops.index_update(val, jax.ops.index[tn0+ 1 + Mn], neq.bc_temp_n(Tvec[Mn], Tvec[Mn+1], Tvec_zcc[0], Tvec_zcc[1]))
         return val

@@ -10,19 +10,22 @@ import jax.numpy as np
 from jax import jacfwd
 from jax.config import config
 config.update('jax_enable_x64', True)
-from numpy.linalg import norm
+from jax.numpy.linalg import norm
 from jax.scipy.linalg import solve
 import matplotlib.pylab as plt
 from settings import delta_t,Tref
 from p2d_param import get_battery_sections
+from functools import partial
 import timeit
+from lax_newton import lax_newton
 #from res_fn_order2 import fn
 from unpack import unpack, unpack_fast
 from scipy.sparse import csr_matrix, csc_matrix
 from  scipy.sparse.linalg import spsolve, splu
-from p2d_newton import newton
+from p2d_newton import newton,damped_newton
 from dataclasses import dataclass
-
+from jax import lax
+import collections
 
 def p2d_fn(Np, Nn, Mp, Mn, Ms, Ma,Mz, fn, jac_fn):
     peq, neq, sepq, accq, zccq= get_battery_sections(Np, Nn, Mp, Ms, Mn, Ma, Mz)
@@ -61,27 +64,52 @@ def p2d_fn(Np, Nn, Mp, Mn, Ms, Ma,Mz, fn, jac_fn):
      
     Tf = 100; 
     steps = Tf/delta_t;
+#    steps = 2
 #    jac_fn = jax.jit(jacfwd(fn))
     voltages = [];
     temps = [];
     start = timeit.default_timer()
-    for i  in range(0,int(steps)):
+#    for i  in range(0,int(steps)):
+#    
+#        [U, fail] = newton(fn, jac_fn, body_fun, U)
+#    
+#        cmat_pe, cmat_ne,uvec_pe, uvec_sep, uvec_ne, \
+#        Tvec_acc, Tvec_pe, Tvec_sep, Tvec_ne, Tvec_zcc, \
+#        phie_pe, phie_sep, phie_ne, phis_pe, phis_ne, jvec_pe, jvec_ne, eta_pe, eta_ne = unpack(U,Mp, Np, Mn, Nn, Ms, Ma, Mz)
+#        volt = phis_pe[1] - phis_ne[Mn]
+#        voltages.append(volt)
+#        temps.append(np.mean(Tvec_pe[1:Mp+1]))
+#        if (fail == 0):
+#            pass 
+#    #        print("timestep:", i)
+#        else:
+#            print('Premature end of run\n') 
+#            break 
+#    for i  in range(0,int(steps)):
+#    
+#    [U, fail] = lax_newton(fn, jac_fn, U, maxit=5, tol=1e-8)
+#    
+#        cmat_pe, cmat_ne,uvec_pe, uvec_sep, uvec_ne, \
+#        Tvec_acc, Tvec_pe, Tvec_sep, Tvec_ne, Tvec_zcc, \
+#        phie_pe, phie_sep, phie_ne, phis_pe, phis_ne, jvec_pe, jvec_ne, eta_pe, eta_ne = unpack(U,Mp, Np, Mn, Nn, Ms, Ma, Mz)
+#        volt = phis_pe[1] - phis_ne[Mn]
+#        voltages.append(volt)
+#        temps.append(np.mean(Tvec_pe[1:Mp+1]))
+#        if (fail == 0):
+#            pass 
+#    #        print("timestep:", i)
+#        else:
+#            print('Premature end of run\n') 
+#            break 
     
-        [U, fail] = newton(fn, jac_fn, U)
-    
-        cmat_pe, cmat_ne,uvec_pe, uvec_sep, uvec_ne, \
-        Tvec_acc, Tvec_pe, Tvec_sep, Tvec_ne, Tvec_zcc, \
-        phie_pe, phie_sep, phie_ne, phis_pe, phis_ne, jvec_pe, jvec_ne, eta_pe, eta_ne = unpack(U,Mp, Np, Mn, Nn, Ms, Ma, Mz)
-        volt = phis_pe[1] - phis_ne[Mn]
-        voltages.append(volt)
-        temps.append(np.mean(Tvec_pe[1:Mp+1]))
-        if (fail == 0):
-            pass 
-    #        print("timestep:", i)
-        else:
-            print('Premature end of run\n') 
-            break 
+    print("entering newton")
+    [state, fail] = newton(fn, jac_fn, U)
+#    state = lax_newton(fn, jac_fn, U, maxit=5, tol=1e-7)
+
         
     end = timeit.default_timer();
     time = end-start
-    return U, voltages, temps,time
+    
+    
+#    return U, voltages, temps,time
+    return state, time

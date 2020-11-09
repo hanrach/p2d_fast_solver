@@ -10,8 +10,8 @@ from SeparatorEquation import SeparatorEquation, sep_constants,sep_grid_param
 from CurrentCollectorEquation import CurrentCollectorEquation, a_cc_constants, z_cc_constants, cc_grid_param
 
 def get_battery_sections(Np, Nn, Mp, Ms, Mn, Ma, Mz):
-    peq = ElectrodeEquation(p_electrode_constants(),p_electrode_grid_param(Mp, Np), "positive", 25751,51554)
-    neq = ElectrodeEquation(n_electrode_constants(),n_electrode_grid_param(Mn, Nn), "negative",26128,30555)
+    peq = ElectrodeEquation(p_electrode_constants(),p_electrode_grid_param(Mp, Np), "positive", 25751.,51554.)
+    neq = ElectrodeEquation(n_electrode_constants(),n_electrode_grid_param(Mn, Nn), "negative",26128.,30555.)
     sepq = SeparatorEquation(sep_constants(), sep_grid_param(Ms))
     accq = CurrentCollectorEquation(a_cc_constants(), cc_grid_param(Ma))
     zccq = CurrentCollectorEquation(z_cc_constants(), cc_grid_param(Mz))

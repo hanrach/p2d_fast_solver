@@ -1,10 +1,32 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Mon Oct 26 11:57:57 2020
+Created on Fri Nov  6 22:19:41 2020
 
 @author: hanrach
 """
+import jax
+import jax.numpy as np
+from jax import jacfwd
+from jax.config import config
+config.update('jax_enable_x64', True)
+from jax.numpy.linalg import norm
+from jax.scipy.linalg import solve
+import matplotlib.pylab as plt
+from settings import delta_t,Tref
+from p2d_param import get_battery_sections
+from functools import partial
+import timeit
+from lax_newton import lax_newton
+#from res_fn_order2 import fn
+from unpack import unpack, unpack_fast
+from scipy.sparse import csr_matrix, csc_matrix
+from  scipy.sparse.linalg import spsolve, splu
+from p2d_newton import newton,damped_newton
+from dataclasses import dataclass
+from jax import lax
+import collections
+from unpack import unpack
 import jax
 from jax.scipy.linalg import solve
 import jax.numpy as np
@@ -17,6 +39,11 @@ from p2d_main_fn import p2d_fn
 from residual import ResidualFunction
 import jax.numpy as np
 import collections
+import timeit
+from p2d_newton import newton
+from jacres_u import jacres_u
+from jacres_T import jacres_T
+from jacres_c import jacres_c
 NewtonInfo = collections.namedtuple(
         'NewtonInfo', [
                 'count',
@@ -37,7 +64,7 @@ Ms = 10
 Mn = 50
 Ma = 5
 Mz = 5
-from unpack import unpack
+
  #    val = np.zeros(Ntot)
 solver = ResidualFunction(Np, Nn, Mp, Mn, Ms, Ma,Mz)
 
@@ -85,22 +112,63 @@ def fn(U,Uold):
     val = solver.res_eta(val, eta_pe, phis_pe, phie_pe, Tvec_pe, cmat_pe, eta_ne, phis_ne, phie_ne, Tvec_ne, cmat_ne)
     return val
         
-
-#@jax.jit
-#def body_fun(U,Uold):
-#   
-#    J =  jac_fn(U, Uold)
-#    y = fn(U,Uold)
-#    res = norm(y/norm(U,np.inf),np.inf)
-#    delta = solve(J,y)
-#    U = U - delta
-#    
-#    return U, res, delta
-
-jac_fn = jax.jit(jacrev(fn))
+jac_fn = jax.jit(jacfwd(fn))
 fn = jax.jit(fn)
-state, time = p2d_fn(Np, Nn, Mp, Mn, Ms, Ma,Mz,fn, jac_fn)
-print("Finished process.\n")
-#print("solution", state.U)
-#print("Time for the solver:",time)
-#print("Voltages", voltages)
+
+peq, neq, sepq, accq, zccq= get_battery_sections(Np, Nn, Mp, Ms, Mn, Ma, Mz)
+#    grid = pack_grid(Mp,Np,Mn,Nn,Ms,Ma,Mz)
+
+Ntot_pe = (Np+2)*(Mp) + 4*(Mp + 2) + 2*(Mp)
+Ntot_ne = (Nn+2)*(Mn) + 4*(Mn + 2) + 2*(Mn)
+
+Ntot_sep =  3*(Ms + 2)
+Ntot_acc =Ma+ 2
+Ntot_zcc = Mz+ 2
+Ntot = Ntot_pe + Ntot_ne + Ntot_sep + Ntot_acc + Ntot_zcc
+
+U = np.hstack( 
+        [
+                peq.cavg*np.ones(Mp*(Np+2)), 
+                neq.cavg*np.ones(Mn*(Nn+2)),
+                1000 + np.zeros(Mp + 2),
+                1000 + np.zeros(Ms + 2),
+                1000 + np.zeros(Mn + 2),
+                
+                np.zeros(Mp),
+                np.zeros(Mn),
+                np.zeros(Mp),
+                np.zeros(Mn),
+                
+                
+                np.zeros(Mp+2) + peq.open_circuit_poten(peq.cavg, peq.cavg,Tref,peq.cmax),
+                np.zeros(Mn+2) + neq.open_circuit_poten(neq.cavg, neq.cavg,Tref,neq.cmax),
+                
+                np.zeros(Mp+2) + 0,
+                np.zeros(Ms+2) + 0,
+                np.zeros(Mn+2) + 0,
+
+                Tref + np.zeros(Ma + 2),
+                Tref + np.zeros(Mp + 2),
+                Tref + np.zeros(Ms + 2),
+                Tref + np.zeros(Mn + 2),
+                Tref + np.zeros(Mz + 2)
+                
+                ])
+ 
+#from  https://jax.readthedocs.io/en/latest/notebooks/autodiff_cookbook.html   
+def indirect(fn):
+    def jacfn(U,Uold):
+        y, vjp_fun = jax.vjp(fn, U, Uold)
+        J = jax.vmap(jax.jit(vjp_fun))(np.eye(len(U)))
+        return J
+    return jacfn
+
+def jac_handler(U,Uold):
+    y, jvp_fun = jax.jvp(fn, U, Uold);
+    return lambda v: jvp_fun(v)
+
+
+#print("time elapsed", end-start)
+#res_c, J_c = jacres_c(U,U, peq, neq, sepq, accq, zccq) 
+#res_u, J_u = jacres_u(U,U, peq, neq, sepq, accq, zccq)
+#res_T, J_T = jacres_T(U,U, peq, neq, sepq, accq, zccq)

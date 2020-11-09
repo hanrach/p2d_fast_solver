@@ -7,31 +7,115 @@ Created on Wed Sep 23 22:32:07 2020
 """
 from jax.scipy.linalg import solve
 import jax.numpy as np
-from numpy.linalg import norm
-
-
-
+from jax.numpy.linalg import norm
+from jax import lax
+import collections
+import jax
+import timeit
+from scipy.sparse import csr_matrix, csc_matrix
+from  scipy.sparse.linalg import spsolve, splu    
 def newton(fn, jac_fn, U):
     maxit=20
-    tol = 1e-7
+    tol = 1e-8
     count = 0
     res = 100
     fail = 0
 
     Uold = U
     maxit=5
-    while(count < maxit):
+#    
+#    @jax.jit
+#    def body_fun(U,Uold):
+#        J =  jac_fn(U, Uold)
+#        y = fn(U,Uold)
+#        res = norm(y/norm(U,np.inf),np.inf)
+#        delta = solve(J,y)
+#        U = U - delta
+#        return U, res
+#   
+    print("here")
+    start =timeit.default_timer()     
+    J =  jac_fn(U, Uold)
+    print("computed jacobian")
+    y = fn(U,Uold)
+    res0 = norm(y/norm(U,np.inf),np.inf)
+    delta = solve(J,y)
+    U = U - delta
+    count = count + 1
+    end = timeit.default_timer()
+    print("time elapsed in first loop", end-start)
+    print(count, res0)
+    while(count < maxit and  res > tol):
+#        U, res, delta = body_fun(U,Uold)\
+        start1 =timeit.default_timer() 
         J =  jac_fn(U, Uold)
-
         y = fn(U,Uold)
-
         res = norm(y/norm(U,np.inf),np.inf)
-
         delta = solve(J,y)
-
         U = U - delta
         count = count + 1
+        end1 =timeit.default_timer() 
+        print("time per loop", end1-start1)
+        print(count, res)
     
+        
+    if fail ==0 and np.any(np.isnan(delta)):
+        fail = 1
+        print("nan solution")
+        
+    if fail == 0 and max(abs(np.imag(delta))) > 0:
+            fail = 1
+            print("solution complex")
+    
+    if fail == 0 and res > tol:
+        fail = 1;
+        print('Newton fail: no convergence')
+    else:
+        fail == 0 
+        
+    return U, fail
+
+
+def newton_while_lax(fn, jac_fn, U, maxit, tol):
+    
+    
+    count = 0
+    res = 100
+    fail = 0
+    
+    val = (U, count, res, fail)
+
+    Uold = U
+    J =  jac_fn(U, Uold)
+    y = fn(U,Uold)  
+    delta = solve(J,y)
+    U = U - delta;
+#    res0 = norm(y/norm(U,np.inf),np.inf)
+    
+   
+    def cond_fun(val):
+        U, count, res, _ = val
+        res = norm(y/norm(U,np.inf),np.inf)
+        print("res:",res)
+        return np.logical_and(res > tol, count < maxit)
+#    
+   
+    def body_fun(val):
+        U, count, res, fail = val
+        J = jac_fn(U,Uold);
+        y = fn(U,Uold)
+        delta = solve(J,y)
+        U = U - delta
+        res = norm(y/norm(U,np.inf),np.inf)
+        count = count + 1
+        print(count, res)
+        val = U, count, res, fail
+      
+        return val
+    
+    val =lax.while_loop(cond_fun, body_fun, val )
+    U, count, res, _ = val
+   
         
     if fail ==0 and np.any(np.isnan(delta)):
         fail = 1

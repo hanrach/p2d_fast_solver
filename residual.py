@@ -27,7 +27,7 @@ from CurrentCollectorEquation import CurrentCollectorEquation, a_cc_constants, z
 from unpack import unpack
 image_folder = 'images'
 video_name = 'video.avi'
-
+from jax import lax
 
 class ResidualFunction:
     def __init__(self, Mp, Np, Mn, Nn, Ms, Ma, Mz):
@@ -337,7 +337,7 @@ class ResidualFunction:
 
 
     #    val = np.zeros(Ntot)
-#    @partial(jax.jit, static_argnums=(0,))
+    @partial(jax.jit, static_argnums=(0,))
     def fn(self,U,Uold):
         
         val= np.zeros(self.Ntot)

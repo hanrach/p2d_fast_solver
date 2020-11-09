@@ -158,11 +158,6 @@ def unpack_fast_reorder2(U, Mp, Mn, Ms, Ma, Mz):
     etan0 = jn0 + Mn
     
     
-    
-    
-    
-    
-    
     uvec_pe = U[up0:up0 + Mp +2]
     Tvec_pe = U[tp0:tp0+Mp+2]
     phie_pe = U[phiep0:phiep0+Mp+2]

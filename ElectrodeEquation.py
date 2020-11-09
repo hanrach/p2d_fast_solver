@@ -56,6 +56,17 @@ class ElectrodeEquation:
         
         self.rpts_end = self.Rp*np.linspace(0,N, N+1)/N
         self.rpts_mid = self.Rp*(np.linspace(1,N, N)-0.5)/N
+        R = self.Rp*(np.linspace(1,N,N)-(1/2))/N;
+#        R = np.arange(0,self.Rp + self.hy, self.hy) + self.hy/2 ;
+#        R = R[0:-1]
+        r = self.Rp*(np.linspace(0,N, N+1))/N
+#        r = np.arange(0,self.Rp + self.hy, self.hy) + self.hy; 
+#        self.rpts_end = self.Rp*np.linspace(0,N, N+1)/N
+#        self.rpts_mid = self.Rp*(np.linspace(1,N, N)-0.5)/N
+#        lambda1 = k*r[0:N]**2/R**2/hy**2;
+#        lambda2 = k*r[1:N+1]**2/R**2/hy**2;
+        lambda1 = delta_t*r[0:N]**2/(R**2*self.hy**2);
+        lambda2 = delta_t*r[1:N+1]**2/(R**2*self.hy**2);
         
     """ Heat source terms """
     
@@ -86,10 +97,10 @@ class ElectrodeEquation:
         return ans
     
     """ Equations for c"""
-    def solid_conc(self,cn,cc,cp, cold, rn, rp, rmid):
+    def solid_conc(self,cn,cc,cp, cold, lambda1, lambda2):
         hy = self.hy
         Ds = self.Ds
-        ans = (cc-cold)  - delta_t*Ds*( (rp**2)*(cp-cc) - (rn**2)*(cc- cn) )/((hy**2)*(rmid**2))
+        ans = (cc-cold)  + Ds*( cc*(lambda2 + lambda1) - lambda2*cp - lambda1*cn)
         return ans
     
 
@@ -143,7 +154,7 @@ class ElectrodeEquation:
     def bc_zero_neumann(self,u0, u1):
         bc =  u1 - u0
         return bc.reshape()
-    
+
     def bc_const_dirichlet(self,u0, u1, constant):
         bc =  (u1 + u0)/2 - constant
         return bc.reshape()

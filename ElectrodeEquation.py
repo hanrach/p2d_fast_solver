@@ -8,23 +8,15 @@ Created on Tue Apr 21 12:50:15 2020
 
 import coeffs
 import jax.numpy as np
-
-from batterySection import Electrode, Separator, CurrentCollector, p_electrode_constants, p_electrode_grid_param,\
-n_electrode_constants,n_electrode_grid_param,sep_constants,sep_grid_param,a_cc_constants,z_cc_constants,cc_grid_param
-from settings import F, R, gamma, trans, Tref, delta_t
+from settings import F, R, gamma, trans, Tref
 from jax.config import config
 config.update("jax_enable_x64", True)
-from dataclasses import dataclass
-
-pe = Electrode(p_electrode_constants(),p_electrode_grid_param(), 25751, 51554)
-ne = Electrode(n_electrode_constants(),n_electrode_grid_param(), 26128, 30555)
-sep = Separator(sep_constants(), sep_grid_param())
-acc = CurrentCollector(a_cc_constants(),cc_grid_param())
-zcc = CurrentCollector(z_cc_constants(),cc_grid_param())
+from functools import partial
+import jax
 
 class ElectrodeEquation:   
     
-    def __init__(self, constants, gridparam, electrode_type, cavg, cmax):
+    def __init__(self, constants, gridparam, electrode_type, s_constants, s_grid, a_constants, acc_grid, z_constants, zcc_grid, cavg, cmax, delta_t):
         self.cavg = cavg
         self.cmax = cmax
         self.electrode_type = electrode_type
@@ -44,11 +36,21 @@ class ElectrodeEquation:
         self.Ek = constants.Ek
         self.ED = constants.ED
         self.Ds = constants.Ds
+        self.delta_t=delta_t
+        self.sep = s_constants
+        self.sep_hx = self.sep.l/s_grid.M
+        
+        self.acc = a_constants
+        self.acc_hx = self.acc.l/acc_grid.M
+        
+        self.zcc=z_constants
+        self.zcc_hx = self.zcc.l/zcc_grid.M
         
         self.N = gridparam.N; self.M = gridparam.M
         N = self.N; M = self.M;
         self.hx = self.l/M; self.hy = self.Rp/N
-#        self.hx = 1/M; self.hy = 1/N
+
+
         self.sigeff  = self.sigma*(1-self.eps - self.epsf)
         
         self.rpts_end = np.arange(0,N)*self.Rp/N
@@ -65,8 +67,8 @@ class ElectrodeEquation:
 #        self.rpts_mid = self.Rp*(np.linspace(1,N, N)-0.5)/N
 #        lambda1 = k*r[0:N]**2/R**2/hy**2;
 #        lambda2 = k*r[1:N+1]**2/R**2/hy**2;
-        lambda1 = delta_t*r[0:N]**2/(R**2*self.hy**2);
-        lambda2 = delta_t*r[1:N+1]**2/(R**2*self.hy**2);
+        self.lambda1 = delta_t*r[0:N]**2/(R**2*self.hy**2);
+        self.lambda2 = delta_t*r[1:N+1]**2/(R**2*self.hy**2);
         
     """ Heat source terms """
     
@@ -98,7 +100,6 @@ class ElectrodeEquation:
     
     """ Equations for c"""
     def solid_conc(self,cn,cc,cp, cold, lambda1, lambda2):
-        hy = self.hy
         Ds = self.Ds
         ans = (cc-cold)  + Ds*( cc*(lambda2 + lambda1) - lambda2*cp - lambda1*cn)
         return ans
@@ -108,11 +109,11 @@ class ElectrodeEquation:
     def solid_conc_2(self,cn,cc,cp, cold):
         hy = self.hy
         Ds = self.Ds
-
-        lambda1  = delta_t*self.rpts_end[0:self.N]**2/self.rpts_mid**2/hy**2;
-        lambda2  = delta_t*self.rpts_end[1:self.N+1]**2/self.rpts_mid**2/hy**2;
         
-        k = delta_t;
+        lambda1  = self.delta_t*self.rpts_end[0:self.N]**2/self.rpts_mid**2/hy**2;
+        lambda2  = self.delta_t*self.rpts_end[1:self.N+1]**2/self.rpts_mid**2/hy**2;
+        
+        k = self.delta_t;
         N = self.N
         R = self.Rp*(np.linspace(1,N,N)-(1/2))/N;
 #        R = np.arange(0,self.Rp + self.hy, self.hy) + self.hy/2 ;
@@ -137,7 +138,7 @@ class ElectrodeEquation:
         return bc.reshape()
     
     """ Equations for u """
-    
+    @partial(jax.jit, static_argnums=(0,))
     def electrolyte_conc(self,un, uc, up, Tn, Tc, Tp, j,uold):
         eps = self.eps; brugg = self.brugg; hx = self.hx
         a = self.a
@@ -147,7 +148,7 @@ class ElectrodeEquation:
         Deff_l = coeffs.electrolyteDiffCoeff(eps,brugg,umid_l,Tmid_l);
         
         
-        ans = (uc-uold) - (delta_t/eps)*( ( Deff_r*(up - uc)/hx - Deff_l*(uc - un)/hx )/hx + a*(1-trans)*j ) 
+        ans = (uc-uold) - (self.delta_t/eps)*( ( Deff_r*(up - uc)/hx - Deff_l*(uc - un)/hx )/hx + a*(1-trans)*j ) 
     
         return ans.reshape()
     
@@ -163,8 +164,8 @@ class ElectrodeEquation:
     def bc_u_sep_p(self,u0_pe,u1_pe,T0_pe,T1_pe,\
              u0_sep,u1_sep,T0_sep,T1_sep):
         
-        eps_p = self.eps; eps_s = sep.eps;
-        brugg_p = self.brugg; brugg_s = sep.brugg;
+        eps_p = self.eps; eps_s = self.sep.eps;
+        brugg_p = self.brugg; brugg_s = self.sep.brugg;
         
 #        Deff_pe = coeffs.electrolyteDiffCoeff(eps_p,brugg_p,(u0_pe + u1_pe)/2,(T0_pe + T1_pe)/2)
 #        Deff_sep = coeffs.electrolyteDiffCoeff(eps_s,brugg_s,(u0_sep + u1_sep)/2,(T0_sep + T1_sep)/2)
@@ -172,7 +173,7 @@ class ElectrodeEquation:
         Deff_pe = (coeffs.electrolyteDiffCoeff(eps_p,brugg_p,u0_pe,T0_pe) + coeffs.electrolyteDiffCoeff(eps_p,brugg_p,u1_pe,T1_pe))/2
         Deff_sep =( coeffs.electrolyteDiffCoeff(eps_s,brugg_s,u0_sep,T0_sep) + coeffs.electrolyteDiffCoeff(eps_s,brugg_s,u1_sep,T1_sep))/2          
         
-        bc = -Deff_pe*(u1_pe - u0_pe)/pe.hx + Deff_sep*(u1_sep - u0_sep)/sep.hx
+        bc = -Deff_pe*(u1_pe - u0_pe)/self.hx + Deff_sep*(u1_sep - u0_sep)/self.sep_hx
 #        bc = -Deff_pe*(u1_pe - u0_pe)*sep.hx + Deff_sep*(u1_sep - u0_sep)*pe.hx
         return bc.reshape()
     
@@ -183,12 +184,13 @@ class ElectrodeEquation:
     # boundary condition for negative electrode
     def bc_u_sep_n(self,u0_ne,u1_ne,T0_ne,T1_ne,\
                  u0_sep,u1_sep,T0_sep,T1_sep):
-        eps_n = self.eps; eps_s = sep.eps;
-        brugg_n = self.brugg; brugg_s = sep.brugg;
+        
+        eps_n = self.eps; eps_s = self.sep.eps;
+        brugg_n = self.brugg; brugg_s = self.sep.brugg;
         
         Deff_ne = coeffs.electrolyteDiffCoeff(eps_n,brugg_n,(u0_ne + u1_ne)/2,(T0_ne + T1_ne)/2)
         Deff_sep = coeffs.electrolyteDiffCoeff(eps_s,brugg_s,(u0_sep + u1_sep)/2,(T0_sep + T1_sep)/2)
-        bc = -Deff_sep*(u1_sep - u0_sep)/sep.hx + Deff_ne*(u1_ne - u0_ne)/ne.hx
+        bc = -Deff_sep*(u1_sep - u0_sep)/self.sep_hx + Deff_ne*(u1_ne - u0_ne)/self.hx
         return bc.reshape()
     
     """ Electrolyte potential equations: phie """
@@ -240,16 +242,16 @@ class ElectrodeEquation:
     def bc_phie_p(self,phie0_p, phie1_p, phie0_s, phie1_s, u0_p, u1_p, u0_s, u1_s, T0_p, T1_p, T0_s, T1_s):
         
         kapeff_p = coeffs.electrolyteConductCoeff(self.eps,self.brugg,(u0_p + u1_p)/2,(T0_p + T1_p)/2);
-        kapeff_s = coeffs.electrolyteConductCoeff(sep.eps,sep.brugg,(u0_s + u1_s)/2,(T0_s + T1_s)/2);
+        kapeff_s = coeffs.electrolyteConductCoeff(self.sep.eps,self.sep.brugg,(u0_s + u1_s)/2,(T0_s + T1_s)/2);
         
-        bc = -kapeff_p*(phie1_p - phie0_p)/pe.hx + kapeff_s*(phie1_s - phie0_s)/sep.hx
+        bc = -kapeff_p*(phie1_p - phie0_p)/self.hx + kapeff_s*(phie1_s - phie0_s)/self.sep_hx
         return bc.reshape()
     
     def bc_phie_n(self,phie0_n, phie1_n, phie0_s, phie1_s, u0_n, u1_n, u0_s, u1_s, T0_n, T1_n, T0_s, T1_s):
-        kapeff_n = coeffs.electrolyteConductCoeff(pe.eps,pe.brugg,(u0_n + u1_n)/2,(T0_n + T1_n)/2);
-        kapeff_s = coeffs.electrolyteConductCoeff(pe.eps,pe.brugg,(u0_s + u1_s)/2,(T0_s + T1_s)/2);
+        kapeff_n = coeffs.electrolyteConductCoeff(self.eps, self.brugg, (u0_n + u1_n)/2,(T0_n + T1_n)/2);
+        kapeff_s = coeffs.electrolyteConductCoeff(self.sep.eps, self.sep.brugg, (u0_s + u1_s)/2,(T0_s + T1_s)/2);
         
-        bc = -kapeff_s*(phie1_s - phie0_s)/sep.hx + kapeff_n*(phie1_n - phie0_n)/ne.hx
+        bc = -kapeff_s*(phie1_s - phie0_s)/self.sep_hx + kapeff_n*(phie1_n - phie0_n)/self.hx
         return bc.reshape()
     
     """ Equations for solid potential phis"""
@@ -267,7 +269,7 @@ class ElectrodeEquation:
     """ Equations for Temperature T"""
     def temperature(self,un, uc, up, phien, phiep, phisn, phisp, Tn, Tc, Tp,j,eta, cM, cMp, cmax, Told):
         hx = self.hx
-        ans = (Tc - Told) -  (delta_t/(self.rho*self.Cp))*( self.lam*( Tn - 2*Tc + Tp)/hx**2 + \
+        ans = (Tc - Told) -  (self.delta_t/(self.rho*self.Cp))*( self.lam*( Tn - 2*Tc + Tp)/hx**2 + \
         self.Qohm(phisn, phisp, phien, phiep, un, up, uc, Tc) + self.Qrxn(j,eta) + self.Qrev(j,Tc,cM, cMp,cmax) )
 #        ans = (Tc - Told)*hx**2 -  (delta_t/(self.rho*self.Cp))*( self.lam*( Tn - 2*Tc + Tp)+ \
 #        (self.Qohm(phisn, phisp, phien, phiep, un, up, uc, Tc) + self.Qrxn(j,eta) + self.Qrev(j,Tc,cM, cMp,cmax))*hx**2 )
@@ -276,31 +278,31 @@ class ElectrodeEquation:
     def temperature_fast(self,un, uc, up, phien, phiep, phisn, phisp, Tn, Tc, Tp,j,eta, cs_1, gamma_c, cmax, Told):
         hx = self.hx
         cs = cs_1 - gamma_c*j/coeffs.solidDiffCoeff(self.Ds, self.ED, Tc)
-        ans = (Tc - Told) -  (delta_t/(self.rho*self.Cp))*( self.lam*( Tn - 2*Tc + Tp)/hx**2 + \
+        ans = (Tc - Told) -  (self.delta_t/(self.rho*self.Cp))*( self.lam*( Tn - 2*Tc + Tp)/hx**2 + \
         self.Qohm(phisn, phisp, phien, phiep, un, up, uc, Tc) + self.Qrxn(j,eta) + self.Qrev_fast(j,Tc,cs,cmax) )
         return ans.reshape()
     
     def temperature_phi(self,un, uc, up, phien, phiec, phiep, phisn, phisc, phisp, Tn, Tc, Tp,j, cM, cMp, cmax, Told):
         hx = self.hx
-        ans = (Tc - Told) -  (delta_t/(self.rho*self.Cp))*( self.lam*( Tn - 2*Tc + Tp)/hx**2 + \
+        ans = (Tc - Told) -  (self.delta_t/(self.rho*self.Cp))*( self.lam*( Tn - 2*Tc + Tp)/hx**2 + \
         self.Qohm(phisn, phisp, phien, phiep, un, up, uc, Tc) + self.Qrxn_phi(j,phisc,phiec,Tc,cMp,cMp,cmax) + self.Qrev(j,Tc,cM, cMp,cmax) )
         return ans.reshape()
     
     # boundary conditions
     def bc_temp_ap(self,T0_acc, T1_acc, T0_pe, T1_pe): 
-        bc = -acc.lam*(T1_acc - T0_acc)/acc.hx + pe.lam*(T1_pe - T0_pe)/pe.hx
+        bc = -self.acc.lam*(T1_acc - T0_acc)/self.acc_hx + self.lam*(T1_pe - T0_pe)/self.hx
         return bc.reshape()
     
     def bc_temp_ps(self,T0_p, T1_p, T0_s, T1_s):
-        bc = -pe.lam*(T1_p - T0_p)/pe.hx+ sep.lam*(T1_s - T0_s)/sep.hx
+        bc = -self.lam*(T1_p - T0_p)/self.hx+ self.sep.lam*(T1_s - T0_s)/self.sep_hx
         return bc.reshape()
     
     def bc_temp_sn(self,T0_s, T1_s, T0_n, T1_n):
-        bc = -sep.lam*(T1_s - T0_s)/sep.hx + ne.lam*(T1_n - T0_n)/ne.hx
+        bc = -self.sep.lam*(T1_s - T0_s)/self.sep_hx + self.lam*(T1_n - T0_n)/self.hx
         return bc.reshape()
     
     def bc_temp_n(self,T0_ne, T1_ne, T0_zcc, T1_zcc):
-        bc = -ne.lam*(T1_ne - T0_ne)/ne.hx+ zcc.lam*(T1_zcc - T0_zcc)/zcc.hx
+        bc = -self.lam*(T1_ne - T0_ne)/self.hx+ self.zcc.lam*(T1_zcc - T0_zcc)/self.zcc_hx
         return bc.reshape()
     
     """ ionic flux: j"""
@@ -422,121 +424,3 @@ class ElectrodeEquation:
     
     
 
-
-@dataclass
-class electrode_constants:
-    eps: float; brugg:float;
-    a: float; Rp: float;
-    lam: float; epsf: float;
-    rho: float; Cp: float;
-    k:float
-    Ds: float; l:float
-    sigma: float; Ek: float;
-    ED: float;
-    
-
-    
-@dataclass
-class grid_param_pack:
-    M: int; N:int;
-    
-def p_electrode_constants():
-    # porosity
-    eps = 0.385; 
-    
-    # Bruggeman's coefficient
-    brugg = 4;
-    
-    # Particle surface area to volume
-    a= 885000;
-    
-    # Particle radius
-    Rp= 2*1e-6;
-    
-    # Thermal conductivity
-    lam = 2.1; 
-    
-    # Filler fraction
-    epsf = 0.025;
-    
-    # Density
-    rho = 2500; 
-    
-    # Specific heat
-    Cp = 700;
-    
-    # Reaction rate
-    k = 2.334*1e-11
-    
-    # Solid-phase diffusivity
-    Ds = 1e-14; 
-    
-    # Thickness
-    l = 8*1e-5;
-    
-    # Solid-phase conductivity
-    sigma = 100;
-    
-    Ek = 5000
-    
-    ED = 5000
-
-    return electrode_constants(eps,brugg,a, Rp,lam, epsf, \
-                               rho,Cp, k, Ds, l,sigma,Ek, ED)
-    
-def n_electrode_constants():
-    # porosity
-    eps = 0.485; 
-    
-    # Bruggeman's coefficient
-    brugg = 4;
-    
-    # Particle surface area to volume
-    a= 723600;
-    
-    # Particle radius
-    Rp= 2*1e-6;
-    
-    # Thermal conductivity
-    lam = 1.7; 
-    
-    # Filler fraction
-    epsf = 0.0326;
-    
-    # Density
-    rho = 2500; 
-    
-    # Specific heat
-    Cp = 700;
-    
-    # Reaction rate
-    k = 5.031*1e-11
-    
-    # Solid-phase diffusivity
-    Ds = 3.9*1e-14; 
-    
-    # Thickness
-    l = 8.8*1e-5;
-#    l = 8*1e-5;
-    
-    # Solid-phase conductivity
-    sigma = 100;
-    
-    Ek = 5000;
-    
-    ED = 5000;
-
-    return electrode_constants(eps,brugg,a, Rp,lam, epsf, \
-                               rho,Cp, k, Ds, l,sigma, Ek, ED)
-
-def p_electrode_grid_param(M,N):
-#    M = 10; N = 5;
-    return grid_param_pack(M,N)
-
-def n_electrode_grid_param(M,N):
-#    M = 10; N = 5;
-    return grid_param_pack(M,N)
-
-
-#peq = ElectrodeEquation(p_electrode_constants(),p_electrode_grid_param(), "positive")
-#neq = ElectrodeEquation(n_electrode_constants(),n_electrode_grid_param(), "negative")

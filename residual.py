@@ -21,16 +21,18 @@ from jax import vmap
 from jax.config import config
 config.update("jax_enable_x64", True)
 from settings import Iapp
-from ElectrodeEquation import ElectrodeEquation, p_electrode_constants,p_electrode_grid_param, n_electrode_constants,n_electrode_grid_param
-from SeparatorEquation import SeparatorEquation, sep_constants,sep_grid_param
-from CurrentCollectorEquation import CurrentCollectorEquation, a_cc_constants, z_cc_constants, cc_grid_param
+from ElectrodeEquation import ElectrodeEquation
+from SeparatorEquation import SeparatorEquation
+from CurrentCollectorEquation import CurrentCollectorEquation
+from settings import p_electrode_constants,p_electrode_grid_param, n_electrode_constants,n_electrode_grid_param, \
+sep_constants,sep_grid_param, a_cc_constants, z_cc_constants, cc_grid_param
 from unpack import unpack
 image_folder = 'images'
 video_name = 'video.avi'
-from jax import lax
+
 
 class ResidualFunction:
-    def __init__(self, Mp, Np, Mn, Nn, Ms, Ma, Mz):
+    def __init__(self, Mp, Np, Mn, Nn, Ms, Ma, Mz, delta_t):
         self.Mp = Mp
         self.Np = Np
         self.Mn = Mn; self.Nn = Nn; self.Ms = Ms; self.Ma=Ma; self.Mz=Mz;
@@ -40,11 +42,20 @@ class ResidualFunction:
         Ntot_acc = Ma + 2
         Ntot_zcc = Mz + 2
         self.Ntot = Ntot_pe+ Ntot_ne + Ntot_sep + Ntot_acc + Ntot_zcc
-        self.peq = ElectrodeEquation(p_electrode_constants(),p_electrode_grid_param(Mp, Np), "positive",25751, 51554)
-        self.neq = ElectrodeEquation(n_electrode_constants(),n_electrode_grid_param(Mn, Nn), "negative", 26128, 30555)
-        self.sepq = SeparatorEquation(sep_constants(),sep_grid_param(Ms))
-        self.accq = CurrentCollectorEquation(a_cc_constants(),cc_grid_param(Ma))
-        self.zccq = CurrentCollectorEquation(z_cc_constants(),cc_grid_param(Mz))
+        self.peq = ElectrodeEquation(p_electrode_constants(),p_electrode_grid_param(Mp, Np), "positive", \
+                                     sep_constants(), sep_grid_param(Ms), \
+                                     a_cc_constants(), cc_grid_param(Ma),\
+                                     z_cc_constants(), cc_grid_param(Mz),25751, 51554,delta_t)
+        self.neq = ElectrodeEquation(n_electrode_constants(),n_electrode_grid_param(Mn, Nn), "negative", \
+                                     sep_constants(), sep_grid_param(Ms), \
+                                     a_cc_constants(), cc_grid_param(Ma),\
+                                     z_cc_constants(), cc_grid_param(Mz),26128, 30555,delta_t)
+        
+        self.sepq = SeparatorEquation(sep_constants(),sep_grid_param(Ms), \
+                                      p_electrode_constants(), n_electrode_constants(),\
+                                      p_electrode_grid_param(Mp,Np), n_electrode_grid_param(Mn, Nn), delta_t)
+        self.accq = CurrentCollectorEquation(a_cc_constants(),cc_grid_param(Ma),delta_t)
+        self.zccq = CurrentCollectorEquation(z_cc_constants(),cc_grid_param(Mz),delta_t)
         
         
 
@@ -76,13 +87,42 @@ class ResidualFunction:
 #    @jax.jit
     @partial(jax.jit, static_argnums=(0,))
     def res_c_fn(self, val, cmat_pe, jvec_pe, Tvec_pe, cmat_old_pe, cmat_ne, jvec_ne, Tvec_ne, cmat_old_ne):
-  
+        
         Mp = self.Mp
         Np = self.Np
         peq = self.peq
         Mn = self.Mn
         Nn = self.Nn
         neq = self.neq
+#        
+##        @jax.jit
+#        def c_pe_loop(y, i):
+#            y = jax.ops.index_update(y, jax.ops.index[i*(Np+2)], peq.bc_zero_neumann(cmat_pe[0,i], cmat_pe[1,i]) )
+#            y = jax.ops.index_update(y, jax.ops.index[i*(Np+2) + Np+1], peq.bc_neumann_c(cmat_pe[Np,i], cmat_pe[Np+1,i],jvec_pe[i], Tvec_pe[i+1] )) 
+#            res_c = peq.solid_conc_2(cmat_pe[0:Np,i], cmat_pe[1:Np+1,i], cmat_pe[2:Np+2,i], cmat_old_pe[1:Np+1, i])
+#            y = jax.ops.index_update(y, jax.ops.index[i*(Np+2)+1 : Np+1 + i*(Np+2) ], res_c)
+#            return (y, i)
+#        
+##        @jax.jit
+#        def c_pe_lax(y):
+#            ranger = np.arange(0,Mp)
+#            return lax.scan(c_pe_loop, y, ranger)[0]
+#        
+##        @jax.jit
+#        def c_ne_loop(y, i):
+#            y = jax.ops.index_update(y, jax.ops.index[i*(Nn+2)], neq.bc_zero_neumann(cmat_ne[0,i], cmat_ne[1,i]) )
+#            y = jax.ops.index_update(y, jax.ops.index[i*(Nn+2) + Nn+1], neq.bc_neumann_c(cmat_ne[Nn,i], cmat_ne[Nn+1,i],jvec_ne[i], Tvec_ne[i+1] )) 
+#            res_c = neq.solid_conc_2(cmat_ne[0:Nn,i], cmat_ne[1:Nn+1,i], cmat_ne[2:Nn+2,i], cmat_old_ne[1:Nn+1, i])
+#            y = jax.ops.index_update(y, jax.ops.index[i*(Nn+2)+1 : Nn+1 + i*(Nn+2) ], res_c)
+#            return (y, i)
+#        
+##        @jax.jit
+#        def c_ne_lax(y):
+#            ranger = Nn.arange(0,Mn)
+#            return lax.scan(c_ne_loop, y, ranger)[0]
+#        
+#        val = c_pe_lax(val) 
+#        val = c_ne_lax(val)
         for i in range(0,Mp):
             val = jax.ops.index_update(val, jax.ops.index[i*(Np+2)], peq.bc_zero_neumann(cmat_pe[0,i], cmat_pe[1,i]) )
             val = jax.ops.index_update(val, jax.ops.index[i*(Np+2) + Np+1], peq.bc_neumann_c(cmat_pe[Np,i], cmat_pe[Np+1,i],jvec_pe[i], Tvec_pe[i+1] )) 
@@ -96,8 +136,9 @@ class ResidualFunction:
             val = jax.ops.index_update(val, jax.ops.index[Mp*(Np+2) + i*(Nn+2) + Nn+1], neq.bc_neumann_c(cmat_ne[Nn,i], cmat_ne[Nn+1,i], jvec_ne[i], Tvec_ne[i+1])) 
             res_cn = neq.solid_conc_2(cmat_ne[0:Nn,i], cmat_ne[1:Nn+1,i], cmat_ne[2:Nn+2,i], cmat_old_ne[1:Nn+1, i])
             val = jax.ops.index_update(val, jax.ops.index[Mp*(Np+2) + i*(Nn+2)+1 : Mp*(Np+2) + Nn+1 + i*(Nn+2) ], res_cn)
-        
+#        
         return val
+
     
     
 #    @jax.jit
@@ -115,6 +156,7 @@ class ResidualFunction:
         val = jax.ops.index_update(val, jax.ops.index[up0 + Mp + 1], peq.bc_u_sep_p(uvec[Mp],uvec[Mp+1],Tvec[Mp],Tvec[Mp+1],\
                  uvec_sep[0],uvec_sep[1],Tvec_sep[0],Tvec_sep[1]))
         return val
+
     
 #    @jax.jit
     @partial(jax.jit, static_argnums=(0,))
@@ -381,4 +423,6 @@ class ResidualFunction:
         #    val = res_j_phi(val, jvec_pe, uvec_pe, Tvec_pe, phis_pe, phie_pe, cmat_pe, jvec_ne, uvec_ne, Tvec_ne, phis_ne, phie_ne, cmat_ne)
         val = self.res_eta(val, eta_pe, phis_pe, phie_pe, Tvec_pe, cmat_pe, eta_ne, phis_ne, phie_ne, Tvec_ne, cmat_ne)
         return val
+    
+
         

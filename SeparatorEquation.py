@@ -127,5 +127,3 @@ class SeparatorEquation:
         bc = -self.lam*(T1_s - T0_s)/self.hx + self.ne.lam*(T1_n - T0_n)/self.ne_hx
         return bc.reshape()
 
-
-#sepq = SeparatorEquation(sep_constants(),sep_grid_param())

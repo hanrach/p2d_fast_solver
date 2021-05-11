@@ -57,7 +57,8 @@ def reorder_tot(Mp, Mn, Ms, Ma, Mz):
             
     # Tp0 + Mp+1    
     order[tp0+Mp+1] = 5 + 6*Mp + 3 + p0
-    
+
+    # u
     for i in range(1,Mp+1):
         order[i]= 5 + 6*(i-1) + p0
     # j
@@ -101,10 +102,11 @@ def reorder_tot(Mp, Mn, Ms, Ma, Mz):
     order[tsep0 + Ms + 1] = sep0 + 3*Ms + 5
         
         
-    n0 = p0 + 4*(Mp+2) + 2*Mp  + 3*(Ms+2) + 1
+    n0 = p0 + 4*(Mp+2) + 2*Mp + 3*(Ms+2) + 1
         # u0 
-    order[un0] = n0 + 1
-        #phisp0
+    # order[un0] = n0 + 1
+    order[un0] = n0
+    #phisp0
     order[phisn0] = n0 + 1  
     #Phie0
     order[phien0] = n0 + 2

@@ -8,7 +8,7 @@ Created on Fri Nov 13 23:21:54 2020
 
 from jax import jacfwd, jit, jacrev
 from naive.residual import ResidualFunction
-from decoupled.res_fn_fast import ResidualFunctionFast
+from res_fn_fast import ResidualFunctionFast
 import jax.numpy as np
 from utils.unpack import unpack, unpack_fast
 

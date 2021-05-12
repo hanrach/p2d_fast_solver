@@ -20,13 +20,13 @@ import jax.numpy as np
 from jax import vmap
 from jax.config import config
 config.update("jax_enable_x64", True)
-from settings import Iapp
-from ElectrodeEquation import ElectrodeEquation
-from SeparatorEquation import SeparatorEquation
-from CurrentCollectorEquation import CurrentCollectorEquation
-from settings import p_electrode_constants,p_electrode_grid_param, n_electrode_constants,n_electrode_grid_param, \
+from model.settings import Iapp
+from model.ElectrodeEquation import ElectrodeEquation
+from model.SeparatorEquation import SeparatorEquation
+from model.CurrentCollectorEquation import CurrentCollectorEquation
+from model.settings import p_electrode_constants,p_electrode_grid_param, n_electrode_constants,n_electrode_grid_param, \
 sep_constants,sep_grid_param, a_cc_constants, z_cc_constants, cc_grid_param
-from unpack import unpack
+from utils.unpack import unpack
 image_folder = 'images'
 video_name = 'video.avi'
 

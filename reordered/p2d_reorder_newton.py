@@ -76,7 +76,7 @@ def newton(fn_fast, jac_fn_fast, U, cs_pe1, cs_ne1, gamma_p, gamma_n, idx, re_id
 
         U = U - delta_reordered
         count = count + 1
-        print(count, res)
+        # print(count, res)
 
     #    print("Total to evaluate Jacobian:",jf_time)
     if fail == 0 and np.any(np.isnan(delta)):

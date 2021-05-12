@@ -10,29 +10,30 @@ import jax
 import jax.numpy as np
 from jax import jacfwd, vmap
 from jax.config import config
+import time
 config.update('jax_enable_x64', True)
 from numpy.linalg import norm
 from jax.scipy.linalg import solve
 import matplotlib.pylab as plt
-from settings import Tref
+from model.settings import Tref
 import numpy as onp
 #from p2d_param import grid_point_setup
-import coeffs
+import model.coeffs as coeffs
 import timeit
 from time import perf_counter
 #from res_fn_order import fn_fast
 #from res_fn_order2 import fn
-from unpack import unpack, unpack_fast
-from scipy.sparse import csr_matrix, csc_matrix
+from utils.unpack import unpack_fast
+from scipy.sparse import csc_matrix
 from scikits.umfpack import splu
 from p2d_newton_reorder import newton_reorder, newton_reorder_short
 image_folder = 'images'
 video_name = 'video.avi'
-from precompute_c import precompute
+from utils.precompute_c import precompute
 from dataclasses import dataclass
-from p2d_param import get_battery_sections
-from reorder import reorder_tot
-import numba as nb
+from model.p2d_param import get_battery_sections
+from utils.reorder import reorder_tot
+
 
 
 

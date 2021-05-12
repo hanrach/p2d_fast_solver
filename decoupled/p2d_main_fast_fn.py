@@ -11,21 +11,18 @@ import jax.numpy as np
 from jax import vmap
 from jax.config import config
 config.update('jax_enable_x64', True)
-from settings import delta_t,Tref
+from model.settings import delta_t,Tref
 import numpy as onp
-#from p2d_param import grid_point_setup
-import coeffs
+import model.coeffs as coeffs
 import timeit
-#from res_fn_order import fn_fast
-from unpack import unpack_fast
-#from res_fn_order2 import fn
+from utils.unpack import unpack_fast
 from scipy.sparse import csc_matrix
 from scikits.umfpack import splu
 from p2d_newton_fast import newton_fast_short
 image_folder = 'images'
 video_name = 'video.avi'
-from precompute_c import precompute
-from p2d_param import get_battery_sections
+from utils.precompute_c import precompute
+from model.p2d_param import get_battery_sections
 
 
 

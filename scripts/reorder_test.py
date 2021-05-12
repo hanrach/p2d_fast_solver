@@ -10,20 +10,20 @@ import numpy as onp
 from jax.config import config
 config.update('jax_enable_x64', True)
 from init import p2d_init_fast
-from p2d_newton_fast import newton_fast2
-from build_der import *
+from decoupled.p2d_newton_fast import newton_fast2
+from utils.build_der import *
 from scipy.linalg import solve_banded
-from p2d_param import get_battery_sections
-from precompute_c import precompute
+from model.p2d_param import get_battery_sections
+from utils.precompute_c import precompute
 import matplotlib.pylab as plt
 from scipy.sparse.linalg import spsolve, splu
 from scipy.sparse import csc_matrix
 import jax.numpy as np
-from settings import Tref
-from reorder import reorder_tot
-from banded_matrix import diagonal_form
-from unpack import unpack_fast
-from derivatives import compute_jac, partials
+from model.settings import Tref
+from utils.reorder import reorder_tot
+from utils.banded_matrix import diagonal_form
+from utils.unpack import unpack_fast
+from utils.derivatives import compute_jac, partials
 Np = 10
 Nn = 10
 Mp = 10
@@ -758,10 +758,11 @@ plt.colorbar()
 plt.show()
 
 plt.figure()
-diff = abs(Joutput[:, Ma + 2 + 10:] - Jab[:, Ma + 2 + 10:])
+diff = abs(Joutput[:, n0:] - Jab[:,n0:])
 plt.imshow(diff);
 plt.colorbar()
 plt.show()
+np.where(diff > 1e-9)
 
 plt.figure()
 diff2 = abs(Joutput[:, 5 + Ma + 1:40] - Jab[:, 5 + Ma + 1:40])

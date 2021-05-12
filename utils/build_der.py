@@ -366,7 +366,7 @@ def build_djn(J, partial, Ma, Mp, Ms, Mn):
     # djdj
     J, _, _ = lax.scan(array_update, (J, n0 + 4 + 1, 11), (partial[0][0:Mp], ranger_c))[0]
     # djdu
-    J, _, _ = lax.scan(array_update, (J, n0 + 1, 12), (partial[1][0:Mp], ranger_c))[0]
+    J, _, _ = lax.scan(array_update, (J, n0 + 4, 12), (partial[1][0:Mp], ranger_c))[0]
     # djdT
     J, _, _ = lax.scan(array_update, (J, n0 + 4 + 5, 7), (partial[2][0:Mp], ranger_c))[0]
     # djdeta

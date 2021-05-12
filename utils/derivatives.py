@@ -135,7 +135,7 @@ def compute_jac(gamma_p_vec, gamma_n_vec, d, grid_num, vars):
     @jax.jit
     def jacfn(U, Uold, cs_pe1, cs_ne1):
         peq, neq, Iapp = vars
-        Mp, Np, Mn, Nn, Ms, Ma, Mz = grid_num
+        Np, Nn, Mp, Mn, Ms, Ma, Mz = grid_num
         Jnew = np.zeros([23, len(U)])
 
         uvec_pe, uvec_sep, uvec_ne, \

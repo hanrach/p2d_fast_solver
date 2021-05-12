@@ -13,13 +13,12 @@ config.update('jax_enable_x64', True)
 from jax.numpy.linalg import norm
 from jax.scipy.linalg import solve
 import matplotlib.pylab as plt
-from settings import delta_t, Tref
-from p2d_param import get_battery_sections
+from model.settings import delta_t, Tref
+from model.p2d_param import get_battery_sections
 from functools import partial
 import timeit
-from lax_newton import lax_newton
 #from res_fn_order2 import fn
-from unpack import unpack, unpack_fast
+from utils.unpack import unpack, unpack_fast
 from scipy.sparse import csr_matrix, csc_matrix
 from  scipy.sparse.linalg import spsolve, splu
 from p2d_newton import newton,damped_newton, newton_short

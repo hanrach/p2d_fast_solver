@@ -16,8 +16,8 @@ from scipy.sparse import csr_matrix, csc_matrix
 from scikits.umfpack import spsolve
 from jax import vmap
 import numpy as onp
-import coeffs
-from unpack import unpack_fast
+import model.coeffs as coeffs
+from utils.unpack import unpack_fast
 import timeit
 import time
 import numpy as onp

@@ -10,6 +10,8 @@ import numpy as onp
 from functools import partial
 import numba as nb
 
+
+# this code is taken from https://github.com/scipy/scipy/pull/11344
 @nb.njit()
 def diagonal_form(l_and_u, a):
     """

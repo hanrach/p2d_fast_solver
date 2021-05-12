@@ -60,7 +60,43 @@ def unpack(U, Mp, Np, Mn, Nn, Ms, Ma, Mz):
     
     return cmat_pe, cmat_ne, uvec_pe, uvec_sep, uvec_ne, Tvec_acc, Tvec_pe, Tvec_sep, Tvec_ne, Tvec_zcc, phie_pe, phie_sep, phie_ne, phis_pe, phis_ne, j_pe,j_ne,eta_pe,eta_ne
  
-    
+@partial(jax.jit, static_argnums=(1,2,3,4,))
+def unpack_vars(U, Mp, Mn, Ms, Ma):
+    up0 = 0
+    usep0 = up0 + Mp + 2
+    un0 = usep0 + Ms + 2
+
+    jp0 = un0 + Mn + 2
+    jn0 = jp0 + Mp
+
+    etap0 = jn0 + Mn
+    etan0 = etap0 + Mp
+
+    phisp0 = etan0 + Mn
+    phisn0 = phisp0 + Mp + 2
+
+    phiep0 = phisn0 + Mn + 2
+    phiesep0 = phiep0 + Mp + 2
+    phien0 = phiesep0 + Ms + 2
+
+    ta0 = phien0 + Mn + 2
+    tp0 = ta0 + Ma + 2
+    tsep0 = tp0 + Mp + 2
+    tn0 = tsep0 + Ms + 2
+    tz0 = tn0 + Mn + 2
+
+    Tvec_pe = dynamic_slice(U, [tp0], [tsep0 - tp0])
+
+    Tvec_ne = dynamic_slice(U, [tn0], [tz0 - tn0])
+
+    phis_pe = dynamic_slice(U, [phisp0], [phisn0 - phisp0])
+    phis_ne = dynamic_slice(U, [phisn0], [phisn0 + Mn + 2 - phisn0])
+
+    j_pe = dynamic_slice(U, [jp0], [jn0 - jp0])
+    j_ne = dynamic_slice(U, [jn0], [jn0 + Mn - jn0])
+
+    return Tvec_pe, Tvec_ne, phis_pe, phis_ne, j_pe, j_ne
+
 @partial(jax.jit, static_argnums=(1,2,3,4,5,6,7,))
 def unpack_fast(U, Mp, Np, Mn, Nn, Ms, Ma, Mz):
     

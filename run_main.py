@@ -18,7 +18,7 @@ Mn = 10
 Ma = 5
 Mz = 5
 delta_t = 10
-fn, jac_fn  = p2d_init_fast(Np, Nn, Mp, Mn, Ms, Ma,Mz,delta_t)
+fn, jac_fn = p2d_init_fast(Np, Nn, Mp, Mn, Ms, Ma,Mz,delta_t)
 U_fast, cmat_pe, cmat_ne, voltages, temps,time = p2d_fast_fn_short(Np, Nn, Mp, Mn, Ms, Ma,Mz, fn, jac_fn)
 
 uvec_pe, Tvec_pe, phie_pe, phis_pe, \

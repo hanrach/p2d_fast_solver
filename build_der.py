@@ -308,8 +308,11 @@ def build_bc_n(J, bc, Ma, Mp, Ms, Mn):
     p0 = Ma + 1
     sep0 = 4*(Mp+2) + 2*Mp + 1 + p0
     n0 = p0 + 4 * (Mp + 2) + 2 * Mp + 3 * (Ms + 2) + 1
-    row_u = np.array([11, 7, 17, 11])
-    col_u = np.array([n0, n0 + 4, n0 + 4 + 6*(Mn-1), n0 + 4 + 6*Mn])
+    row_u = np.array([11, 7, 8, 2, 17, 14, 15, 12, 17, 11])
+    col_u = np.array([n0, n0 + 4, n0+3, n0 + 9,
+                      sep0 + 3*Ms, sep0 + 3*Ms + 3,
+                      sep0 + 3*Ms + 2, sep0 + 3*Ms + 5,
+                      n0 + 4 + 6*(Mn-1), n0 + 4 + 6*Mn])
     J = jax.ops.index_update(J, jax.ops.index[row_u, col_u], bc['u'])
 
     row_phie = np.array([11, 5, 18, 15, 13, 9, 19, 16, 10, 4, 17, 14, 15, 11])

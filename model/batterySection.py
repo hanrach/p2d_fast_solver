@@ -4,7 +4,7 @@ import jax
 import jax.numpy as np
 #import governing_eqns2 as gov
 import coeffs as coeffs
-from settings import *
+from model.settings import *
 #import test_jacres
 from jax import jit, vmap, grad
 from scipy.sparse.linalg import spsolve

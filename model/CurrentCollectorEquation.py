@@ -6,13 +6,13 @@ Created on Sat May  2 15:20:04 2020
 @author: hanrach
 """
 
-from settings import Tref, Iapp, h
+from model.settings import Tref, h
 from jax.config import config
 config.update("jax_enable_x64", True)
 
 class CurrentCollectorEquation:
     
-    def __init__(self, constants, gridparam, delta_t):
+    def __init__(self, constants, gridparam, delta_t, Iapp):
         self.lam = constants.lam
         self.rho = constants.rho
         self.Cp = constants.Cp
@@ -23,12 +23,13 @@ class CurrentCollectorEquation:
         self.hx = self.l/M;
         self.delta_t=delta_t
 #        self.hx = 1/M; self.hy = 1/N;
+        self.Iapp = Iapp
     
     def temperature(self,Tn,Tc,Tp, Told):
         hx = self.hx
 #        ans = (Tc - Told) -  ( self.lam*( Tn - 2*Tc + Tp)/hx**2 + \
 #        + Iapp**2/self.sigeff )*(delta_t/(self.rho*self.Cp))
-        ans = (Tc - Told) -  ( self.lam*( Tn - 2*Tc + Tp)/hx**2 + Iapp**2/self.sigeff )*(self.delta_t/(self.rho*self.Cp))
+        ans = (Tc - Told) -  ( self.lam*( Tn - 2*Tc + Tp)/hx**2 + self.Iapp**2/self.sigeff )*(self.delta_t/(self.rho*self.Cp))
         return ans.reshape()
     
     """ boundary condition """

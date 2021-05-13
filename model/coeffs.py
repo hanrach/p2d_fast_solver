@@ -5,7 +5,7 @@ Created on Tue Feb 11 16:11:07 2020
 
 @author: hanrach
 """
-from settings import R, Tref
+from model.settings import R, Tref
 from jax.config import config
 import jax.numpy as np
 config.update("jax_enable_x64", True)

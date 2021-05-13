@@ -1,7 +1,7 @@
 from jax import vmap, grad, jit
-from build_der import *
+from utils.build_der import *
 from functools import partial
-from unpack import unpack_fast
+from utils.unpack import unpack_fast
 
 class HashableDict(dict):
     def __hash__(self):
@@ -9,16 +9,16 @@ class HashableDict(dict):
 
 def partials(accq, peq, sepq, neq, zccq):
 
-    dup = jit(vmap(grad(peq.electrolyte_conc, argnums=range(0, 8))))
-    djp = jit(vmap(grad(peq.ionic_flux_fast, argnums=range(0, 4))))
+    dup = (vmap(grad(peq.electrolyte_conc, argnums=range(0, 8))))
+    djp = (vmap(grad(peq.ionic_flux_fast, argnums=range(0, 4))))
 
-    detap = jit(vmap(grad(peq.over_poten_fast, argnums=range(0, 5))))
+    detap = (vmap(grad(peq.over_poten_fast, argnums=range(0, 5))))
 
-    dphisp = vmap(grad(peq.solid_poten, argnums=range(0, 4)))
+    dphisp = (vmap(grad(peq.solid_poten, argnums=range(0, 4))))
 
-    dphiep = vmap(grad(peq.electrolyte_poten, argnums=range(0, 10)))
+    dphiep = (vmap(grad(peq.electrolyte_poten, argnums=range(0, 10))))
 
-    dTp = vmap(grad(peq.temperature_fast, argnums=range(0, 12)))
+    dTp = (vmap(grad(peq.temperature_fast, argnums=range(0, 12))))
 
 
     dup_bc0 = grad(peq.bc_zero_neumann, argnums=(0, 1))

@@ -6,12 +6,13 @@ from jax import vmap
 import jax.numpy as np
 import numpy as onp
 from model.settings import Tref
-from p2d_reorder_newton import newton
+from reordered.p2d_reorder_newton import newton
 from utils.reorder import reorder_tot
 from utils.unpack import unpack_vars
-def p2d_reorder_fn(Np, Nn, Mp, Mn, Ms, Ma, Mz, delta_t, lu_p, lu_n, temp_p, temp_n, gamma_p_vec, gamma_n_vec, fn_fast, jac_fn):
+
+def p2d_reorder_fn(Np, Nn, Mp, Mn, Ms, Ma, Mz, delta_t, lu_pe, lu_ne, temp_p, temp_n, gamma_p_vec, gamma_n_vec, fn_fast, jac_fn,  Iapp, Tf):
     start0 = timeit.default_timer()
-    peq, neq, sepq, accq, zccq = get_battery_sections(Np, Nn, Mp, Ms, Mn, Ma, Mz, delta_t)
+    peq, neq, sepq, accq, zccq = get_battery_sections(Np, Nn, Mp, Ms, Mn, Ma, Mz, delta_t, Iapp)
 
     @jax.jit
     def cmat_format_p(cmat):
@@ -82,12 +83,12 @@ def p2d_reorder_fn(Np, Nn, Mp, Mn, Ms, Ma, Mz, delta_t, lu_p, lu_n, temp_p, temp
     cmat_pe = peq.cavg * np.ones(Mp * (Np + 2))
     cmat_ne = neq.cavg * np.ones(Mn * (Nn + 2))
 
-    lu = {"pe": lu_p, "ne": lu_n}
+    # lu = {"pe": lu_p, "ne": lu_n}
 
     idx_tot = reorder_tot(Mp, Mn, Ms, Ma, Mz)
     re_idx = np.argsort(idx_tot)
 
-    Tf = 3520;
+
     steps = Tf / delta_t;
     voltages = []
     temps = []
@@ -100,8 +101,8 @@ def p2d_reorder_fn(Np, Nn, Mp, Mn, Ms, Ma, Mz, delta_t, lu_p, lu_n, temp_p, temp
     overhead_time = 0
     cmat_rhs_pe = cmat_format_p(cmat_pe)
     cmat_rhs_ne = cmat_format_n(cmat_ne)
-    lu_pe = lu["pe"];
-    lu_ne = lu["ne"]
+    # lu_pe = lu["pe"];
+    # lu_ne = lu["ne"]
 
     cI_pe_vec = lu_pe.solve(onp.asarray(cmat_rhs_pe))
     cI_ne_vec = lu_ne.solve(onp.asarray(cmat_rhs_ne))
@@ -120,8 +121,8 @@ def p2d_reorder_fn(Np, Nn, Mp, Mn, Ms, Ma, Mz, delta_t, lu_p, lu_n, temp_p, temp
 
         cmat_rhs_pe = cmat_format_p(cmat_pe)
         cmat_rhs_ne = cmat_format_n(cmat_ne)
-        lu_pe = lu["pe"];
-        lu_ne = lu["ne"]
+        # lu_pe = lu["pe"];
+        # lu_ne = lu["ne"]
 
         start = timeit.default_timer()
         cI_pe_vec = lu_pe.solve(onp.asarray(cmat_rhs_pe))
@@ -139,23 +140,23 @@ def p2d_reorder_fn(Np, Nn, Mp, Mn, Ms, Ma, Mz, delta_t, lu_p, lu_n, temp_p, temp
         jf_tot_time += jf_time
         overhead_time += overhead
 
-        start_format = timeit.default_timer()
+        # start_format = timeit.default_timer()
         Tvec_pe, Tvec_ne, phis_pe, phis_ne, jvec_pe, jvec_ne = unpack_vars(U_fast, Mp, Mn, Ms, Ma)
 
         cII_p = form_c2_p_jit(temp_p, jvec_pe, Tvec_pe)
         cII_n = form_c2_n_jit(temp_n, jvec_ne, Tvec_ne)
-        # cmat_pe = np.reshape(cII_p, [Mp * (Np + 2)], order="F") + cI_pe_vec
-        # cmat_ne = np.reshape(cII_n, [Mn * (Nn + 2)], order="F") + cI_ne_vec
-        cmat_pe = combine_c(cII_p, cI_pe_vec, Mp, Np)
-        cmat_ne = combine_c(cII_n, cI_ne_vec, Mn, Nn)
+        cmat_pe = np.reshape(cII_p, [Mp * (Np + 2)], order="F") + cI_pe_vec
+        cmat_ne = np.reshape(cII_n, [Mn * (Nn + 2)], order="F") + cI_ne_vec
+        # cmat_pe = combine_c(cII_p, cI_pe_vec, Mp, Np)
+        # cmat_ne = combine_c(cII_n, cI_ne_vec, Mn, Nn)
 
 
 
         voltages.append(phis_pe[1] - phis_ne[Mn])
         temps.append(np.mean(Tvec_pe[1:Mp + 1]))
-        end_format = timeit.default_timer()
+        # end_format = timeit.default_timer()
 
-        overhead_time += (end_format - start_format)
+        # overhead_time += (end_format - start_format)
         if (fail == 0):
             pass
         #            print("timestep:", i)
@@ -167,6 +168,7 @@ def p2d_reorder_fn(Np, Nn, Mp, Mn, Ms, Ma, Mz, delta_t, lu_p, lu_n, temp_p, temp
     end1 = timeit.default_timer();
     tot_time = (end1 - start1)
     time = (tot_time, solve_time_tot, jf_tot_time, overhead_time, init_time)
+    print("Done reordered simulation\n")
     return U_fast, cmat_pe, cmat_ne, voltages, temps, time
 
 

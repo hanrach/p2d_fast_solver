@@ -6,10 +6,10 @@ Created on Fri May  1 15:19:58 2020
 @author: hanrach
 """
 
-import coeffs
+import model.coeffs as coeffs
 import jax.numpy as np
 from jax import grad
-from settings import F, R, gamma, trans
+from model.settings import F, R, gamma, trans
 from jax.config import config
 config.update("jax_enable_x64", True)
 

@@ -17,10 +17,9 @@ Created on Tue Sep 29 15:50:59 2020
 from functools import partial
 import jax
 import jax.numpy as np
-from jax import vmap
+from jax import vmap, lax
 from jax.config import config
 config.update("jax_enable_x64", True)
-from model.settings import Iapp
 from model.ElectrodeEquation import ElectrodeEquation
 from model.SeparatorEquation import SeparatorEquation
 from model.CurrentCollectorEquation import CurrentCollectorEquation
@@ -32,7 +31,7 @@ video_name = 'video.avi'
 
 
 class ResidualFunction:
-    def __init__(self, Mp, Np, Mn, Nn, Ms, Ma, Mz, delta_t):
+    def __init__(self, Mp, Np, Mn, Nn, Ms, Ma, Mz, delta_t, Iapp):
         self.Mp = Mp
         self.Np = Np
         self.Mn = Mn; self.Nn = Nn; self.Ms = Ms; self.Ma=Ma; self.Mz=Mz;
@@ -54,10 +53,10 @@ class ResidualFunction:
         self.sepq = SeparatorEquation(sep_constants(),sep_grid_param(Ms), \
                                       p_electrode_constants(), n_electrode_constants(),\
                                       p_electrode_grid_param(Mp,Np), n_electrode_grid_param(Mn, Nn), delta_t)
-        self.accq = CurrentCollectorEquation(a_cc_constants(),cc_grid_param(Ma),delta_t)
-        self.zccq = CurrentCollectorEquation(z_cc_constants(),cc_grid_param(Mz),delta_t)
+        self.accq = CurrentCollectorEquation(a_cc_constants(),cc_grid_param(Ma),delta_t, Iapp)
+        self.zccq = CurrentCollectorEquation(z_cc_constants(),cc_grid_param(Mz),delta_t, Iapp)
         
-        
+        self.Iapp = Iapp
 
         self.up0 =  Mp*(Np+2) + Mn*(Nn+2)
         self.usep0 = self.up0 + Mp + 2
@@ -83,7 +82,57 @@ class ResidualFunction:
         self.tsep0 = self.tp0 + Mp+2
         self.tn0 = self.tsep0+ Ms+2
         self.tz0 = self.tn0 + Mn+2
-                            
+
+    # @partial(jax.jit, static_argnums=(0,))
+    def update_cp(self, state, update_element):
+        val, i = state
+        element, m = update_element
+        return (jax.ops.index_update(val, i * (self.Np + 2) + 1 + m, element), i), m
+
+    # @partial(jax.jit, static_argnums=(0,))
+    def c_pe_loop(self,state, idx):
+        y, cmat_pe, jvec_pe, Tvec_pe, cmat_old_pe = state
+        y = jax.ops.index_update(y, jax.ops.index[idx * (self.Np + 2)],
+                                 self.peq.bc_zero_neumann(cmat_pe[0, idx], cmat_pe[1, idx]))
+        y = jax.ops.index_update(y, jax.ops.index[idx * (self.Np + 2) + self.Np + 1],
+                                 self.peq.bc_neumann_c(cmat_pe[self.Np, idx], cmat_pe[self.Np + 1, idx], jvec_pe[idx],
+                                                  Tvec_pe[idx + 1]))
+        ranger = np.arange(0, self.Np)
+        res_c = self.peq.solid_conc_2(cmat_pe[0:self.Np, idx], cmat_pe[1:self.Np + 1, idx], cmat_pe[2:self.Np + 2, idx],
+                                 cmat_old_pe[1:self.Np + 1, idx])
+        y, _ = jax.lax.scan(self.update_cp, (y, idx), (res_c, ranger))[0]
+        return (y, cmat_pe, jvec_pe, Tvec_pe, cmat_old_pe), idx
+
+    # @partial(jax.jit, static_argnums=(0,))
+    def c_pe_lax(self,state):
+        ranger = np.arange(0, self.Mp)
+        return lax.scan(self.c_pe_loop, state, ranger)[0][0]
+
+    # @partial(jax.jit, static_argnums=(0,))
+    def update_cn(self, state, update_element):
+        val, i = state
+        element, m = update_element
+        return (jax.ops.index_update(val, self.Mp*(self.Np+2) + i*(self.Nn+2)+1 + m, element), i), m
+
+    # @partial(jax.jit, static_argnums=(0,))
+    def c_ne_loop(self,state, idx):
+        y, cmat_ne, jvec_ne, Tvec_ne, cmat_old_ne = state
+        y = jax.ops.index_update(y, jax.ops.index[self.Mp*(self.Np+2) + idx*(self.Nn+2)],
+                                 self.neq.bc_zero_neumann(cmat_ne[0, idx], cmat_ne[1, idx]))
+        y = jax.ops.index_update(y, jax.ops.index[self.Mp*(self.Np+2) + idx*(self.Nn+2) + self.Nn+1],
+                                 self.neq.bc_neumann_c(cmat_ne[self.Nn,idx], cmat_ne[self.Nn+1,idx],
+                                                       jvec_ne[idx], Tvec_ne[idx+1]))
+        ranger = np.arange(0, self.Nn)
+        res_c = self.neq.solid_conc_2(cmat_ne[0:self.Nn, idx], cmat_ne[1:self.Nn + 1, idx], cmat_ne[2:self.Nn + 2, idx],
+                                 cmat_old_ne[1:self.Nn + 1, idx])
+        y, _ = jax.lax.scan(self.update_cn, (y, idx), (res_c, ranger))[0]
+        return (y, cmat_ne, jvec_ne, Tvec_ne, cmat_old_ne), idx
+
+    # @partial(jax.jit, static_argnums=(0,))
+    def c_ne_lax(self,state):
+        ranger = np.arange(0, self.Mn)
+        return lax.scan(self.c_ne_loop, state, ranger)[0][0]
+
 #    @jax.jit
     @partial(jax.jit, static_argnums=(0,))
     def res_c_fn(self, val, cmat_pe, jvec_pe, Tvec_pe, cmat_old_pe, cmat_ne, jvec_ne, Tvec_ne, cmat_old_ne):
@@ -94,49 +143,24 @@ class ResidualFunction:
         Mn = self.Mn
         Nn = self.Nn
         neq = self.neq
-#        
-##        @jax.jit
-#        def c_pe_loop(y, i):
-#            y = jax.ops.index_update(y, jax.ops.index[i*(Np+2)], peq.bc_zero_neumann(cmat_pe[0,i], cmat_pe[1,i]) )
-#            y = jax.ops.index_update(y, jax.ops.index[i*(Np+2) + Np+1], peq.bc_neumann_c(cmat_pe[Np,i], cmat_pe[Np+1,i],jvec_pe[i], Tvec_pe[i+1] )) 
-#            res_c = peq.solid_conc_2(cmat_pe[0:Np,i], cmat_pe[1:Np+1,i], cmat_pe[2:Np+2,i], cmat_old_pe[1:Np+1, i])
-#            y = jax.ops.index_update(y, jax.ops.index[i*(Np+2)+1 : Np+1 + i*(Np+2) ], res_c)
-#            return (y, i)
-#        
-##        @jax.jit
-#        def c_pe_lax(y):
-#            ranger = np.arange(0,Mp)
-#            return lax.scan(c_pe_loop, y, ranger)[0]
-#        
-##        @jax.jit
-#        def c_ne_loop(y, i):
-#            y = jax.ops.index_update(y, jax.ops.index[i*(Nn+2)], neq.bc_zero_neumann(cmat_ne[0,i], cmat_ne[1,i]) )
-#            y = jax.ops.index_update(y, jax.ops.index[i*(Nn+2) + Nn+1], neq.bc_neumann_c(cmat_ne[Nn,i], cmat_ne[Nn+1,i],jvec_ne[i], Tvec_ne[i+1] )) 
-#            res_c = neq.solid_conc_2(cmat_ne[0:Nn,i], cmat_ne[1:Nn+1,i], cmat_ne[2:Nn+2,i], cmat_old_ne[1:Nn+1, i])
-#            y = jax.ops.index_update(y, jax.ops.index[i*(Nn+2)+1 : Nn+1 + i*(Nn+2) ], res_c)
-#            return (y, i)
-#        
-##        @jax.jit
-#        def c_ne_lax(y):
-#            ranger = Nn.arange(0,Mn)
-#            return lax.scan(c_ne_loop, y, ranger)[0]
-#        
-#        val = c_pe_lax(val) 
-#        val = c_ne_lax(val)
-        for i in range(0,Mp):
-            val = jax.ops.index_update(val, jax.ops.index[i*(Np+2)], peq.bc_zero_neumann(cmat_pe[0,i], cmat_pe[1,i]) )
-            val = jax.ops.index_update(val, jax.ops.index[i*(Np+2) + Np+1], peq.bc_neumann_c(cmat_pe[Np,i], cmat_pe[Np+1,i],jvec_pe[i], Tvec_pe[i+1] )) 
-            res_c = peq.solid_conc_2(cmat_pe[0:Np,i], cmat_pe[1:Np+1,i], cmat_pe[2:Np+2,i], cmat_old_pe[1:Np+1, i])
-            val = jax.ops.index_update(val, jax.ops.index[i*(Np+2)+1 : Np+1 + i*(Np+2) ], res_c)
-        
-        """ negative """    
-   
-        for i in range(0,Mn):
-            val = jax.ops.index_update(val, jax.ops.index[Mp*(Np+2) + i*(Nn+2)], neq.bc_zero_neumann(cmat_ne[0,i], cmat_ne[1,i]) )
-            val = jax.ops.index_update(val, jax.ops.index[Mp*(Np+2) + i*(Nn+2) + Nn+1], neq.bc_neumann_c(cmat_ne[Nn,i], cmat_ne[Nn+1,i], jvec_ne[i], Tvec_ne[i+1])) 
-            res_cn = neq.solid_conc_2(cmat_ne[0:Nn,i], cmat_ne[1:Nn+1,i], cmat_ne[2:Nn+2,i], cmat_old_ne[1:Nn+1, i])
-            val = jax.ops.index_update(val, jax.ops.index[Mp*(Np+2) + i*(Nn+2)+1 : Mp*(Np+2) + Nn+1 + i*(Nn+2) ], res_cn)
-#        
+
+
+        val = self.c_pe_lax((val, cmat_pe, jvec_pe, Tvec_pe, cmat_old_pe))
+        val = self.c_ne_lax((val, cmat_ne, jvec_ne, Tvec_ne, cmat_old_ne))
+        # for i in range(0,Mp):
+        #     val = jax.ops.index_update(val, jax.ops.index[i*(Np+2)], peq.bc_zero_neumann(cmat_pe[0,i], cmat_pe[1,i]) )
+        #     val = jax.ops.index_update(val, jax.ops.index[i*(Np+2) + Np+1], peq.bc_neumann_c(cmat_pe[Np,i], cmat_pe[Np+1,i],jvec_pe[i], Tvec_pe[i+1] ))
+        #     res_c = peq.solid_conc_2(cmat_pe[0:Np,i], cmat_pe[1:Np+1,i], cmat_pe[2:Np+2,i], cmat_old_pe[1:Np+1, i])
+        #     val = jax.ops.index_update(val, jax.ops.index[i*(Np+2)+1 : Np+1 + i*(Np+2) ], res_c)
+        #
+        # """ negative """
+        #
+        # for i in range(0,Mn):
+        #     val = jax.ops.index_update(val, jax.ops.index[Mp*(Np+2) + i*(Nn+2)], neq.bc_zero_neumann(cmat_ne[0,i], cmat_ne[1,i]) )
+        #     val = jax.ops.index_update(val, jax.ops.index[Mp*(Np+2) + i*(Nn+2) + Nn+1], neq.bc_neumann_c(cmat_ne[Nn,i], cmat_ne[Nn+1,i], jvec_ne[i], Tvec_ne[i+1]))
+        #     res_cn = neq.solid_conc_2(cmat_ne[0:Nn,i], cmat_ne[1:Nn+1,i], cmat_ne[2:Nn+2,i], cmat_old_ne[1:Nn+1, i])
+        #     val = jax.ops.index_update(val, jax.ops.index[Mp*(Np+2) + i*(Nn+2)+1 : Mp*(Np+2) + Nn+1 + i*(Nn+2) ], res_cn)
+
         return val
 
     
@@ -337,7 +361,7 @@ class ResidualFunction:
         phisn0  = self.phisn0
         neq = self.neq
         Mn = self.Mn
-        val = jax.ops.index_update(val, jax.ops.index[phisp0], peq.bc_phis(phis_pe[0], phis_pe[1], Iapp))
+        val = jax.ops.index_update(val, jax.ops.index[phisp0], peq.bc_phis(phis_pe[0], phis_pe[1], self.Iapp))
     #    val = jax.ops.index_update(val, jax.ops.index[phisp0], peq.bc_zero_dirichlet(phis_pe[0], phis_pe[1]))
         val = jax.ops.index_update(val, jax.ops.index[phisp0 + 1: phisp0 + Mp+1], vmap(peq.solid_poten)(phis_pe[0:Mp], phis_pe[1:Mp+1], phis_pe[2:Mp+2], jvec_pe[0:Mp]))
         val = jax.ops.index_update(val, jax.ops.index[phisp0 + Mp+1], peq.bc_phis(phis_pe[Mp], phis_pe[Mp+1], 0) )
@@ -345,7 +369,7 @@ class ResidualFunction:
     
         val = jax.ops.index_update(val, jax.ops.index[phisn0], neq.bc_phis(phis_ne[0], phis_ne[1], 0))
         val = jax.ops.index_update(val, jax.ops.index[phisn0 + 1: phisn0 + Mn +1], vmap(neq.solid_poten)(phis_ne[0:Mn], phis_ne[1:Mn+1], phis_ne[2:Mn+2], jvec_ne[0:Mn]))
-        val = jax.ops.index_update(val, jax.ops.index[phisn0 + Mn+1], neq.bc_phis(phis_ne[Mn], phis_ne[Mn+1], Iapp))
+        val = jax.ops.index_update(val, jax.ops.index[phisn0 + Mn+1], neq.bc_phis(phis_ne[Mn], phis_ne[Mn+1], self.Iapp))
     #    val = jax.ops.index_update(val, jax.ops.index[phisn0 + Mn+1], neq.bc_zero_dirichlet(phis_ne[Mn], phis_ne[Mn+1]))
         return val
     

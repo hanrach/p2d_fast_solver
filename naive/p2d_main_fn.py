@@ -5,200 +5,20 @@ Created on Mon Oct 26 14:49:44 2020
 
 @author: hanrach
 """
-import jax
 import jax.numpy as np
-from jax import jacfwd
 from jax.config import config
 config.update('jax_enable_x64', True)
-from jax.numpy.linalg import norm
-from jax.scipy.linalg import solve
-import matplotlib.pylab as plt
-from model.settings import delta_t, Tref
+from model.settings import Tref
 from model.p2d_param import get_battery_sections
-from functools import partial
 import timeit
-#from res_fn_order2 import fn
-from utils.unpack import unpack, unpack_fast
-from scipy.sparse import csr_matrix, csc_matrix
-from  scipy.sparse.linalg import spsolve, splu
-from p2d_newton import newton,damped_newton, newton_short
-from dataclasses import dataclass
-from jax import lax
-import collections
 
-def newton_step(Np, Nn, Mp, Mn, Ms, Ma,Mz, fn, jac_fn, timer_mode):
-    peq, neq, sepq, accq, zccq= get_battery_sections(Np, Nn, Mp, Ms, Mn, Ma, Mz)
+from utils.unpack import unpack
 
-    U = np.hstack( 
-            [
-                    peq.cavg*np.ones(Mp*(Np+2)), 
-                    neq.cavg*np.ones(Mn*(Nn+2)),
-                    1000 + np.zeros(Mp + 2),
-                    1000 + np.zeros(Ms + 2),
-                    1000 + np.zeros(Mn + 2),
-                    
-                    np.zeros(Mp),
-                    np.zeros(Mn),
-                    np.zeros(Mp),
-                    np.zeros(Mn),
-                    
-                    
-                    np.zeros(Mp+2) + peq.open_circuit_poten(peq.cavg, peq.cavg,Tref,peq.cmax),
-                    np.zeros(Mn+2) + neq.open_circuit_poten(neq.cavg, neq.cavg,Tref,neq.cmax),
-                    
-                    np.zeros(Mp+2) + 0,
-                    np.zeros(Ms+2) + 0,
-                    np.zeros(Mn+2) + 0,
-    
-                    Tref + np.zeros(Ma + 2),
-                    Tref + np.zeros(Mp + 2),
-                    Tref + np.zeros(Ms + 2),
-                    Tref + np.zeros(Mn + 2),
-                    Tref + np.zeros(Mz + 2)
-                    
-                    ])
-    
-    start=timeit.default_timer()
-    [U, fail, avg_time, eval_time, sp_time] = newton(fn, jac_fn, U, timer_mode)
-    end=timeit.default_timer()
-    time=end-start
-    return U, fail, avg_time, eval_time, sp_time
-
-def newton_step_short(Np, Nn, Mp, Mn, Ms, Ma,Mz, fn, jac_fn):
-    peq, neq, sepq, accq, zccq= get_battery_sections(Np, Nn, Mp, Ms, Mn, Ma, Mz)
-
-    U = np.hstack( 
-            [
-                    peq.cavg*np.ones(Mp*(Np+2)), 
-                    neq.cavg*np.ones(Mn*(Nn+2)),
-                    1000 + np.zeros(Mp + 2),
-                    1000 + np.zeros(Ms + 2),
-                    1000 + np.zeros(Mn + 2),
-                    
-                    np.zeros(Mp),
-                    np.zeros(Mn),
-                    np.zeros(Mp),
-                    np.zeros(Mn),
-                    
-                    
-                    np.zeros(Mp+2) + peq.open_circuit_poten(peq.cavg, peq.cavg,Tref,peq.cmax),
-                    np.zeros(Mn+2) + neq.open_circuit_poten(neq.cavg, neq.cavg,Tref,neq.cmax),
-                    
-                    np.zeros(Mp+2) + 0,
-                    np.zeros(Ms+2) + 0,
-                    np.zeros(Mn+2) + 0,
-    
-                    Tref + np.zeros(Ma + 2),
-                    Tref + np.zeros(Mp + 2),
-                    Tref + np.zeros(Ms + 2),
-                    Tref + np.zeros(Mn + 2),
-                    Tref + np.zeros(Mz + 2)
-                    
-                    ])
-    
-    start=timeit.default_timer()
-    [U, fail] = newton_short(fn, jac_fn, U)
-    end=timeit.default_timer()
-    time=end-start
-    return U, fail, time
-        
-    
-def p2d_fn(Np, Nn, Mp, Mn, Ms, Ma,Mz, fn, jac_fn, timer_mode):
-    peq, neq, sepq, accq, zccq= get_battery_sections(Np, Nn, Mp, Ms, Mn, Ma, Mz)
-#    grid = pack_grid(Mp,Np,Mn,Nn,Ms,Ma,Mz)
-
-    
-    U = np.hstack( 
-            [
-                    peq.cavg*np.ones(Mp*(Np+2)), 
-                    neq.cavg*np.ones(Mn*(Nn+2)),
-                    1000 + np.zeros(Mp + 2),
-                    1000 + np.zeros(Ms + 2),
-                    1000 + np.zeros(Mn + 2),
-                    
-                    np.zeros(Mp),
-                    np.zeros(Mn),
-                    np.zeros(Mp),
-                    np.zeros(Mn),
-                    
-                    
-                    np.zeros(Mp+2) + peq.open_circuit_poten(peq.cavg, peq.cavg,Tref,peq.cmax),
-                    np.zeros(Mn+2) + neq.open_circuit_poten(neq.cavg, neq.cavg,Tref,neq.cmax),
-                    
-                    np.zeros(Mp+2) + 0,
-                    np.zeros(Ms+2) + 0,
-                    np.zeros(Mn+2) + 0,
-    
-                    Tref + np.zeros(Ma + 2),
-                    Tref + np.zeros(Mp + 2),
-                    Tref + np.zeros(Ms + 2),
-                    Tref + np.zeros(Mn + 2),
-                    Tref + np.zeros(Mz + 2)
-                    
-                    ])
-    
-     
-    Tf = 100; 
-    steps = Tf/delta_t;
-#    steps = 2
-#    jac_fn = jax.jit(jacfwd(fn))
-    voltages = [];
-    temps = [];
-    start = timeit.default_timer()
-    linsolve_t=[]
-    eval_t = []
-    sp_t=[]
-    for i  in range(0,int(steps)):
-    
-        [U, fail, avg_time, eval_time, sp_time] = newton(fn, jac_fn, U, timer_mode)
-    
-        linsolve_t.append(avg_time)
-        eval_t.append(eval_time)
-        sp_t.append(sp_time)
-        
-        cmat_pe, cmat_ne,uvec_pe, uvec_sep, uvec_ne, \
-        Tvec_acc, Tvec_pe, Tvec_sep, Tvec_ne, Tvec_zcc, \
-        phie_pe, phie_sep, phie_ne, phis_pe, phis_ne, jvec_pe, jvec_ne, eta_pe, eta_ne = unpack(U,Mp, Np, Mn, Nn, Ms, Ma, Mz)
-        volt = phis_pe[1] - phis_ne[Mn]
-        voltages.append(volt)
-        temps.append(np.mean(Tvec_pe[1:Mp+1]))
-        if (fail == 0):
-            pass 
-    #        print("timestep:", i)
-        else:
-            print('Premature end of run\n') 
-            break 
-#    for i  in range(0,int(steps)):ㄴ
-#    
-#    [U, fail] = lax_newton(fn, jac_fn, U, maxit=5, tol=1e-8)
-#    
-#        cmat_pe, cmat_ne,uvec_pe, uvec_sep, uvec_ne, \
-#        Tvec_acc, Tvec_pe, Tvec_sep, Tvec_ne, Tvec_zcc, \
-#        phie_pe, phie_sep, phie_ne, phis_pe, phis_ne, jvec_pe, jvec_ne, eta_pe, eta_ne = unpack(U,Mp, Np, Mn, Nn, Ms, Ma, Mz)
-#        volt = phis_pe[1] - phis_ne[Mn]
-#        voltages.append(volt)
-#        temps.append(np.mean(Tvec_pe[1:Mp+1]))
-#        if (fail == 0):
-#            pass 
-#    #        print("timestep:", i)
-#        else:
-#            print('Premature end of run\n') 
-#            break 
-    
-
-#    state = lax_newton(fn, jac_fn, U, maxit=5, tol=1e-7)
-
-        
-    end = timeit.default_timer();
-    time = end-start
-    
-    
-#    return U, voltages, temps,time
-    return U, voltages, temps, time, linsolve_t, eval_t, sp_t
+from naive.p2d_newton import newton_short
 
 
-def p2d_fn_short(Np, Nn, Mp, Mn, Ms, Ma,Mz, fn, jac_fn):
-    peq, neq, sepq, accq, zccq= get_battery_sections(Np, Nn, Mp, Ms, Mn, Ma, Mz)
+def p2d_fn_short(Np, Nn, Mp, Mn, Ms, Ma,Mz, delta_t, fn, jac_fn, Iapp, Tf):
+    peq, neq, sepq, accq, zccq= get_battery_sections(Np, Nn, Mp, Mn, Ms, Ma, Mz,delta_t, Iapp)
 
     U = np.hstack( 
             [
@@ -230,23 +50,39 @@ def p2d_fn_short(Np, Nn, Mp, Mn, Ms, Ma,Mz, fn, jac_fn):
                     ])
     
      
-    Tf = 100; 
+
     steps = Tf/delta_t;
 
     voltages = [];
     temps = [];
-    start = timeit.default_timer()
+
+    start_init = timeit.default_timer()
+    Jinit = jac_fn(U, U).block_until_ready()
+    end_init = timeit.default_timer()
+
+    init_time = end_init - start_init
+    solve_time_tot = 0
+    jf_tot_time = 0
+    overhead_time = 0
+
+    start1 = timeit.default_timer()
     
     for i  in range(0,int(steps)):
     
-        [U, fail] = newton_short(fn, jac_fn, U)
-        
+        U, info = newton_short(fn, jac_fn, U)
+
+        (fail, jf_time, overhead, solve_time) = info
+        solve_time_tot += solve_time
+        jf_tot_time += jf_time
+        overhead_time += overhead
+
         cmat_pe, cmat_ne,uvec_pe, uvec_sep, uvec_ne, \
         Tvec_acc, Tvec_pe, Tvec_sep, Tvec_ne, Tvec_zcc, \
         phie_pe, phie_sep, phie_ne, phis_pe, phis_ne, jvec_pe, jvec_ne, eta_pe, eta_ne = unpack(U,Mp, Np, Mn, Nn, Ms, Ma, Mz)
         volt = phis_pe[1] - phis_ne[Mn]
         voltages.append(volt)
         temps.append(np.mean(Tvec_pe[1:Mp+1]))
+
         if (fail == 0):
             pass 
     #        print("timestep:", i)
@@ -255,9 +91,9 @@ def p2d_fn_short(Np, Nn, Mp, Mn, Ms, Ma,Mz, fn, jac_fn):
             break 
 
         
-    end = timeit.default_timer();
-    time = end-start
-    
-    
-#    return U, voltages, temps,time
+    end1 = timeit.default_timer();
+    tot_time = end1-start1
+
+    time = (tot_time, solve_time_tot, jf_tot_time, overhead_time, init_time)
+    print("Done naive simulation\n")
     return U, voltages, temps, time

@@ -9,8 +9,8 @@ Created on Sun Nov 22 17:25:53 2020
 import numpy as onp
 from jax.config import config
 config.update('jax_enable_x64', True)
-from init import p2d_init_fast
-from decoupled.p2d_newton_fast import newton_fast2
+from decoupled.init import p2d_init_fast
+from decoupled.p2d_newton_fast import newton_fast_sparse
 from utils.build_der import *
 from scipy.linalg import solve_banded
 from model.p2d_param import get_battery_sections
@@ -24,16 +24,16 @@ from utils.reorder import reorder_tot
 from utils.banded_matrix import diagonal_form
 from utils.unpack import unpack_fast
 from utils.derivatives import compute_jac, partials
-Np = 10
-Nn = 10
-Mp = 10
+Np = 5
+Nn = 5
+Mp = 5
 Ms = 5
-Mn = 10
+Mn = 5
 Ma = 5
 Mz = 5
-Iapp = 30
+Iapp = -30
 # i=0
-peq, neq, sepq, accq, zccq = get_battery_sections(Np, Nn, Mp, Ms, Mn, Ma, Mz, 10)
+peq, neq, sepq, accq, zccq = get_battery_sections(Np, Nn, Mp, Mn, Ms, Ma, Mz, 10, Iapp)
 Ap, An, gamma_n, gamma_p, temp_p, temp_n = precompute(peq, neq)
 gamma_p_vec = gamma_p * np.ones(Mp)
 gamma_n_vec = gamma_n * np.ones(Mn)
@@ -92,10 +92,10 @@ cs_pe1 = np.asarray((cI_pe_reshape[Np, :] + cI_pe_reshape[Np + 1, :]) / 2)
 cI_ne_reshape = np.reshape(cI_ne_vec, [Nn + 2, Mn], order="F");
 cs_ne1 = np.asarray((cI_ne_reshape[Nn, :] + cI_ne_reshape[Nn + 1, :]) / 2)
 
-fn_fast, jac_fn_fast = p2d_init_fast(Np, Nn, Mp, Mn, Ms, Ma, Mz, 10)
+fn_fast, jac_fn_fast = p2d_init_fast(Np, Nn, Mp, Mn, Ms, Ma, Mz, 10, Iapp)
 
-U_fast_new, fail, time, eval_time, sp_time = newton_fast2(fn_fast, jac_fn_fast, U_fast, cs_pe1, cs_ne1, gamma_p_vec,
-                                                          gamma_n_vec, "wall time")
+U_fast_new, info = newton_fast_sparse(fn_fast, jac_fn_fast, U_fast, cs_pe1, cs_ne1, gamma_p_vec,gamma_n_vec)
+
 Jfast1 = jac_fn_fast(U_fast_new, U_fast, cs_pe1, cs_ne1, gamma_p_vec, gamma_n_vec)
 yfast1 = fn_fast(U_fast_new, U_fast, cs_pe1, cs_ne1, gamma_p_vec, gamma_n_vec)
 
@@ -104,10 +104,10 @@ re_idx = np.argsort(idx_tot)
 Jreorder = np.zeros([len(U_fast), len(U_fast)])
 
 # from p2d_reorder_newton import newton
-# d = partials(accq, peq, sepq, neq, zccq)
-# grid_num = (Mp, Np, Mn, Nn, Ms, Ma, Mz)
-# vars = (peq, neq, Iapp)
-# jacfn = compute_jac(gamma_p_vec, gamma_n_vec, d, grid_num, vars)
+d = partials(accq, peq, sepq, neq, zccq)
+grid_num = (Mp, Np, Mn, Nn, Ms, Ma, Mz)
+vars = (peq, neq, Iapp)
+jacfn = compute_jac(gamma_p_vec, gamma_n_vec, d, grid_num, vars)
 # U_newton, info = newton(fn_fast, jacfn, U_fast, cs_pe1, cs_ne1, gamma_p_vec, gamma_n_vec, idx_tot, re_idx)
 
 
@@ -565,7 +565,7 @@ def compute_der_new(U, Uold, gamma_p_vec, gamma_n_vec, d, grid_num, vars):
 
 
 @jax.jit
-def compute_der(U, Uold):
+def compute_der(U, Uold, cs_pe1, cs_ne1):
     Jnew = np.zeros([23, len(U_fast)])
 
     uvec_pe, uvec_sep, uvec_ne, \
@@ -749,7 +749,7 @@ def compute_der(U, Uold):
     return Jnew
 
 
-Joutput = compute_der(U_fast_new, U_fast).block_until_ready()
+Joutput = compute_der(U_fast_new, U_fast, cs_pe1, cs_ne1).block_until_ready()
 
 diff0 = abs(Joutput - Jab)
 plt.figure()

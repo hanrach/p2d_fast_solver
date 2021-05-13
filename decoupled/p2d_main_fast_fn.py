@@ -15,10 +15,10 @@ from model.settings import delta_t,Tref
 import numpy as onp
 import model.coeffs as coeffs
 import timeit
-from utils.unpack import unpack_fast
+from utils.unpack import unpack_vars
 from scipy.sparse import csc_matrix
 from scikits.umfpack import splu
-from p2d_newton_fast import newton_fast_short
+from decoupled.p2d_newton_fast import newton_fast_sparse
 image_folder = 'images'
 video_name = 'video.avi'
 from utils.precompute_c import precompute
@@ -27,9 +27,9 @@ from model.p2d_param import get_battery_sections
 
 
 
-def p2d_fast_fn_short(Np, Nn, Mp, Mn, Ms, Ma,Mz, fn_fast, jac_fn):
+def p2d_fast_fn_short(Np, Nn, Mp, Mn, Ms, Ma,Mz, fn_fast, jac_fn, Iapp, Tf):
     start0 = timeit.default_timer()
-    peq, neq, sepq, accq, zccq= get_battery_sections(Np, Nn, Mp, Ms, Mn, Ma, Mz,10)
+    peq, neq, sepq, accq, zccq= get_battery_sections(Np, Nn, Mp, Mn, Ms, Ma, Mz, 10, Iapp)
     Ap, An, gamma_n, gamma_p, temp_p, temp_n = precompute(peq,neq)
     gamma_p_vec  = gamma_p*np.ones(Mp)
     gamma_n_vec = gamma_n*np.ones(Mn)
@@ -70,6 +70,10 @@ def p2d_fast_fn_short(Np, Nn, Mp, Mn, Ms, Ma,Mz, fn_fast, jac_fn):
 #        val=vmap(fn,(0,1,0),1)(j,temp,Deff_vec)
         val=vmap(fn,(0,None,0),1)(j,temp,Deff_vec)
         return val
+
+    @jax.partial(jax.jit, static_argnums=(2, 3,))
+    def combine_c(cII, cI_vec, M,N):
+        return np.reshape(cII, [M * (N + 2)], order="F") + cI_vec
     
     U_fast = np.hstack( 
             [
@@ -104,16 +108,36 @@ def p2d_fast_fn_short(Np, Nn, Mp, Mn, Ms, Ma,Mz, fn_fast, jac_fn):
     
     lu = {"pe":lu_p, "ne": lu_n}
 
-    Tf = 3520; 
+
     steps = Tf/delta_t;
     voltages = [];
     temps = [];
     end0 = timeit.default_timer()
     
     print("setup time", end0-start0)
-#    res_list=[]
+
+    cmat_rhs_pe = cmat_format_p(cmat_pe)
+    cmat_rhs_ne = cmat_format_n(cmat_ne)
+    lu_pe = lu["pe"];
+    lu_ne = lu["ne"]
+
+    cI_pe_vec = lu_pe.solve(onp.asarray(cmat_rhs_pe))
+    cI_ne_vec = lu_ne.solve(onp.asarray(cmat_rhs_ne))
+
+    cs_pe1 = (cI_pe_vec[Np:Mp * (Np + 2):Np + 2] + cI_pe_vec[Np + 1:Mp * (Np + 2):Np + 2]) / 2
+    cs_ne1 = (cI_ne_vec[Nn:Mn * (Nn + 2):Nn + 2] + cI_ne_vec[Nn + 1:Mn * (Nn + 2):Nn + 2]) / 2
+
+    start_init = timeit.default_timer()
+    Jinit = jac_fn(U_fast, U_fast, cs_pe1, cs_ne1, gamma_p_vec, gamma_n_vec).block_until_ready()
+    end_init = timeit.default_timer()
+
+    init_time = end_init - start_init
+
     solve_time_tot=0
     jf_tot_time=0
+    overhead_time = 0
+
+
     start1 = timeit.default_timer()
     
     for i  in range(0,int(steps)):
@@ -131,20 +155,24 @@ def p2d_fast_fn_short(Np, Nn, Mp, Mn, Ms, Ma,Mz, fn_fast, jac_fn):
         cs_pe1 = (cI_pe_vec[Np:Mp*(Np+2):Np+2] + cI_pe_vec[Np+1:Mp*(Np+2):Np+2])/2
         cs_ne1 = (cI_ne_vec[Nn:Mn*(Nn+2):Nn+2] + cI_ne_vec[Nn+1:Mn*(Nn+2):Nn+2])/2
         
-        U_fast, info = newton_fast_short(fn_fast, jac_fn, U_fast, cs_pe1, cs_ne1, gamma_p_vec,gamma_n_vec)
-        
-        (fail, solve_time, jf_time)=info
+        U_fast, info = newton_fast_sparse(fn_fast, jac_fn, U_fast, cs_pe1, cs_ne1, gamma_p_vec,gamma_n_vec)
+
+        (fail, solve_time, overhead, jf_time) = info
+
+        overhead_time += overhead
         solve_time_tot += solve_time + c_lintime
         jf_tot_time += jf_time 
         
-        uvec_pe,uvec_sep, uvec_ne,Tvec_acc, Tvec_pe, Tvec_sep, Tvec_ne, Tvec_zcc,\
-        phie_pe, phie_sep, phie_ne, phis_pe, phis_ne, jvec_pe, jvec_ne, eta_pe, eta_ne = unpack_fast(U_fast,Mp, Np, Mn, Nn, Ms, Ma, Mz)
-        
+        # uvec_pe,uvec_sep, uvec_ne,Tvec_acc, Tvec_pe, Tvec_sep, Tvec_ne, Tvec_zcc,\
+        # phie_pe, phie_sep, phie_ne, phis_pe, phis_ne, jvec_pe, jvec_ne, eta_pe, eta_ne = unpack_fast(U_fast,Mp, Np, Mn, Nn, Ms, Ma, Mz)
+        Tvec_pe, Tvec_ne, phis_pe, phis_ne, jvec_pe, jvec_ne = unpack_vars(U_fast, Mp, Mn, Ms, Ma)
       
         cII_p = form_c2_p_jit(temp_p, jvec_pe, Tvec_pe)
         cII_n = form_c2_n_jit(temp_n, jvec_ne, Tvec_ne)
-        cmat_pe = np.reshape(cII_p, [Mp*(Np+2)], order="F") + cI_pe_vec
-        cmat_ne = np.reshape(cII_n, [Mn*(Nn+2)], order="F") + cI_ne_vec
+        # cmat_pe = np.reshape(cII_p, [Mp*(Np+2)], order="F") + cI_pe_vec
+        # cmat_ne = np.reshape(cII_n, [Mn*(Nn+2)], order="F") + cI_ne_vec
+        cmat_pe = combine_c(cII_p, cI_pe_vec, Mp, Np)
+        cmat_ne = combine_c(cII_n, cI_ne_vec, Mn, Nn)
     
         volt = phis_pe[1] - phis_ne[Mn]
         voltages.append(volt)
@@ -159,7 +187,8 @@ def p2d_fast_fn_short(Np, Nn, Mp, Mn, Ms, Ma,Mz, fn_fast, jac_fn):
         
     end1 = timeit.default_timer();
     tot_time = (end1-start1)
-    time = (tot_time, solve_time_tot,jf_tot_time)
+    time = (tot_time, solve_time_tot, jf_tot_time, overhead_time, init_time)
+    print("Done decoupled simulation\n")
     return U_fast, cmat_pe, cmat_ne, voltages, temps,time
 
 

@@ -21,7 +21,6 @@ from jax.config import config
 config.update("jax_enable_x64", True)
 #from numpy.linalg import norm
 #import matplotlib.pylab as plt
-from model.settings import Iapp
 from model.ElectrodeEquation import ElectrodeEquation
 from model.SeparatorEquation import SeparatorEquation
 from model.CurrentCollectorEquation import CurrentCollectorEquation
@@ -30,7 +29,7 @@ sep_constants,sep_grid_param, a_cc_constants, z_cc_constants, cc_grid_param
 
 
 class ResidualFunctionFast():
-    def __init__(self, Mp, Np, Mn, Nn, Ms, Ma, Mz, delta_t):
+    def __init__(self, Mp, Np, Mn, Nn, Ms, Ma, Mz, delta_t, Iapp):
         self.Mp = Mp
         self.Np = Np
         self.Mn = Mn; self.Nn = Nn; self.Ms = Ms; self.Ma=Ma; self.Mz=Mz;
@@ -48,9 +47,10 @@ class ResidualFunctionFast():
                                       p_electrode_constants(), n_electrode_constants(),\
                                       p_electrode_grid_param(Mp,Np), n_electrode_grid_param(Mn, Nn), delta_t)
         
-        self.accq = CurrentCollectorEquation(a_cc_constants(),cc_grid_param(Ma),delta_t)
-        self.zccq = CurrentCollectorEquation(z_cc_constants(),cc_grid_param(Mz),delta_t)
-        
+        self.accq = CurrentCollectorEquation(a_cc_constants(),cc_grid_param(Ma),delta_t, Iapp)
+        self.zccq = CurrentCollectorEquation(z_cc_constants(),cc_grid_param(Mz),delta_t, Iapp)
+
+        self.Iapp = Iapp
         self.up0 =  0
         self.usep0 = self.up0 + Mp + 2
         self.un0 = self.usep0  + Ms+2
@@ -243,7 +243,7 @@ class ResidualFunctionFast():
         phisn0  = self.phisn0
         neq = self.neq
         Mn = self.Mn
-        val = jax.ops.index_update(val, jax.ops.index[phisp0], peq.bc_phis(phis_pe[0], phis_pe[1], Iapp))
+        val = jax.ops.index_update(val, jax.ops.index[phisp0], peq.bc_phis(phis_pe[0], phis_pe[1], self.Iapp))
         #    val = jax.ops.index_update(val, jax.ops.index[phisp0], peq.bc_zero_dirichlet(phis_pe[0], phis_pe[1]))
         val = jax.ops.index_update(val, jax.ops.index[phisp0 + 1: phisp0 + Mp+1], vmap(peq.solid_poten)(phis_pe[0:Mp], phis_pe[1:Mp+1], phis_pe[2:Mp+2], jvec_pe[0:Mp]))
         val = jax.ops.index_update(val, jax.ops.index[phisp0 + Mp+1], peq.bc_phis(phis_pe[Mp], phis_pe[Mp+1], 0) )
@@ -251,7 +251,7 @@ class ResidualFunctionFast():
         
         val = jax.ops.index_update(val, jax.ops.index[phisn0], neq.bc_phis(phis_ne[0], phis_ne[1], 0))
         val = jax.ops.index_update(val, jax.ops.index[phisn0 + 1: phisn0 + Mn +1], vmap(neq.solid_poten)(phis_ne[0:Mn], phis_ne[1:Mn+1], phis_ne[2:Mn+2], jvec_ne[0:Mn]))
-        val = jax.ops.index_update(val, jax.ops.index[phisn0 + Mn+1], neq.bc_phis(phis_ne[Mn], phis_ne[Mn+1], Iapp))
+        val = jax.ops.index_update(val, jax.ops.index[phisn0 + Mn+1], neq.bc_phis(phis_ne[Mn], phis_ne[Mn+1], self.Iapp))
         #    val = jax.ops.index_update(val, jax.ops.index[phisn0 + Mn+1], neq.bc_zero_dirichlet(phis_ne[Mn], phis_ne[Mn+1]))
         return val
     

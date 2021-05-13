@@ -201,7 +201,7 @@ def form_c2_p( temp, j, T, N, M, elec):
 def p2d_reorder_fn(Np, Nn, Mp, Mn, Ms, Ma,Mz, fn_fast, jac_fn, timer_mode):
   
     start0 = timeit.default_timer()
-    peq, neq, sepq, accq, zccq= get_battery_sections(Np, Nn, Mp, Ms, Mn, Ma, Mz)
+    peq, neq, sepq, accq, zccq= get_battery_sections(Np, Nn, Mp, Mn, Ms, Ma, Mz)
     Ap, An, gamma_n, gamma_p, temp_p, temp_n = precompute(peq,neq)
     gamma_p_vec  = gamma_p*np.ones(Mp)
     gamma_n_vec = gamma_n*np.ones(Mn)

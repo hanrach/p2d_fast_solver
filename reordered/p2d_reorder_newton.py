@@ -47,7 +47,7 @@ def newton(fn_fast, jac_fn_fast, U, cs_pe1, cs_ne1, gamma_p, gamma_n, idx, re_id
     #    res0 = norm(y/norm(U,np.inf),np.inf)
     count = 1
 
-    jf_time = 0;
+    jf_time = jf_time0;
     overhead = overhead_r;
     solve_time = solve_time0;
     while (count < maxit and res > tol):

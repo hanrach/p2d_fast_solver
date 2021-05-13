@@ -6,9 +6,9 @@ Created on Tue Apr 21 12:50:15 2020
 @author: hanrach
 """
 
-import coeffs
+import model.coeffs as coeffs
 import jax.numpy as np
-from settings import F, R, gamma, trans, Tref
+from model.settings import F, R, gamma, trans, Tref
 from jax.config import config
 config.update("jax_enable_x64", True)
 from functools import partial

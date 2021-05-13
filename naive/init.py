@@ -7,12 +7,12 @@ Created on Fri Nov 13 23:21:54 2020
 """
 
 from jax import jacfwd, jit
-from residual import ResidualFunction
+from naive.residual import ResidualFunction
 import jax.numpy as np
 from utils.unpack import unpack
 
-def p2d_init_slow(Np, Nn, Mp, Mn, Ms, Ma,Mz):
-    solver = ResidualFunction(Np, Nn, Mp, Mn, Ms, Ma,Mz)
+def p2d_init_slow(Np, Nn, Mp, Mn, Ms, Ma,Mz, delta_t, Iapp):
+    solver = ResidualFunction(Np, Nn, Mp, Mn, Ms, Ma,Mz, delta_t, Iapp)
 
     def fn(U,Uold):
         

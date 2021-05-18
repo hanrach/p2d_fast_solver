@@ -24,13 +24,13 @@ from utils.reorder import reorder_tot
 from utils.banded_matrix import diagonal_form
 from utils.unpack import unpack_fast
 from utils.derivatives import compute_jac, partials
-Np = 5
-Nn = 5
-Mp = 5
-Ms = 5
-Mn = 5
-Ma = 5
-Mz = 5
+Np = 20
+Nn = 20
+Mp = 20
+Ms = 20
+Mn = 20
+Ma = 20
+Mz = 20
 Iapp = -30
 # i=0
 peq, neq, sepq, accq, zccq = get_battery_sections(Np, Nn, Mp, Mn, Ms, Ma, Mz, 10, Iapp)
@@ -752,8 +752,10 @@ def compute_der(U, Uold, cs_pe1, cs_ne1):
 Joutput = compute_der(U_fast_new, U_fast, cs_pe1, cs_ne1).block_until_ready()
 
 diff0 = abs(Joutput - Jab)
+diff0_matrix = np.zeros_like(Joutput)
+diff0_matrix[Jab.nonzero()] = diff0[Jab.nonzero()]/abs(Jab[Jab.nonzero()])
 plt.figure()
-plt.imshow(diff0);
+plt.imshow(diff0_matrix);
 plt.colorbar()
 plt.show()
 
@@ -770,3 +772,10 @@ plt.imshow(diff2);
 plt.colorbar()
 plt.show()
 
+Ntot_pe =  4 * (Mp + 2) + 2 * (Mp)
+Ntot_ne = 4 * (Mp + 2) + 2 * (Mp)
+
+Ntot_sep = 3 * (Ms + 2)
+Ntot_acc = Ms + 2
+Ntot_zcc = Ms + 2
+Ntot = Ntot_pe + Ntot_ne + Ntot_sep + Ntot_acc + Ntot_zcc

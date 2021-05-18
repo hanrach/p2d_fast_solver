@@ -26,25 +26,25 @@ plt.figure()
 ax = plt.gca()
 plt.rcParams.update({'font.size': 16})
 plt.semilogy(Ntot_list[0:3],(tot_list[0][0][0:3]),'k+-',label="naive");
-plt.semilogy(Ntot_list[0:3],(tot_list[1][0][0:3]),'r+-',label="decoupled");
+# plt.semilogy(Ntot_list[0:3],(tot_list[1][0][0:3]),'r+-',label="decoupled");
 plt.semilogy(Ntot_list[0:3],(tot_list[2][0][0:3]),'b+-',label="reordered");
 ax.grid(which='major', axis='both')
 plt.xlabel("Degree of freedom")
 plt.ylabel("Total simulation time")
 plt.legend(loc='best');
-plt.savefig('full_tot.pdf', bbox_inches='tight')
+plt.savefig('full_tot2.pdf', bbox_inches='tight')
 
 plt.figure()
 ax = plt.gca()
 plt.rcParams.update({'font.size': 16})
-plt.semilogy(Ntot_list[0:3],(linsolve_list[0][0][0:3]),'k+-',label="naive");
-plt.semilogy(Ntot_list[0:3],(linsolve_list[1][0][0:3]),'r+-',label="decoupled");
-plt.semilogy(Ntot_list[0:3],(linsolve_list[2][0][0:3]),'b+-',label="reordered");
+plt.plot(Ntot_list[0:3],(linsolve_list[0][0][0:3]),'k+-',label="naive");
+# plt.semilogy(Ntot_list[0:3],(linsolve_list[1][0][0:3]),'r+-',label="decoupled");
+plt.plot(Ntot_list[0:3],(linsolve_list[2][0][0:3]),'b+-',label="reordered");
 ax.grid(which='major', axis='both')
 plt.xlabel("Degree of freedom")
 plt.ylabel("Linear solve time")
 plt.legend(loc='best');
-plt.savefig('full_linsolve.pdf', bbox_inches='tight')
+plt.savefig('full_linsolve2.pdf', bbox_inches='tight')
 
 plt.figure()
 ax = plt.gca()

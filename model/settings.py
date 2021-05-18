@@ -16,13 +16,12 @@ global gamma
 global Tref
 global Iapp
 
-Iapp = -30;
+
 trans = 0.364;
 F = 96485;
 R = 8.314472;
 gamma = 2*(1-trans)*R/F;
 Tref = 298.15;
-delta_t = 10;
 h = 1
 
 @dataclass

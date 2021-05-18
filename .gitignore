@@ -3,4 +3,5 @@ __pycache__/
 *$py.class
 /tmp
 .DS_Store
-.idea
+/.idea
+/performance/data

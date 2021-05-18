@@ -11,13 +11,13 @@ from scipy.sparse import csc_matrix
 from scikits.umfpack import splu
 from reordered.p2d_reorder_fn import p2d_reorder_fn
 
-Np = 5
-Nn = 5
-Mp = 5
-Ms = 5
-Mn = 5
-Ma = 5
-Mz = 5
+Np = 30
+Nn = 30
+Mp = 30
+Ms = 30
+Mn = 30
+Ma = 30
+Mz = 30
 delta_t = 10
 Iapp = -30
 peq, neq, sepq, accq, zccq = get_battery_sections(Np, Nn, Mp, Mn, Ms, Ma, Mz, delta_t, Iapp)
@@ -36,7 +36,7 @@ jac_fn = compute_jac(gamma_p_vec, gamma_n_vec, partial_fns, (Np, Nn, Mp, Mn,Ms, 
 U_fast, cmat_pe, cmat_ne, voltages, temps, time = p2d_reorder_fn(Np, Nn, Mp, Mn, Ms, Ma, Mz, delta_t,
                                                                  lu_p, lu_n, temp_p, temp_n,
                                                                  gamma_p_vec, gamma_n_vec,
-                                                                 fn, jac_fn, Iapp, 3520)
+                                                                 fn, jac_fn, Iapp, 3520, tol=1e-6)
 
 uvec_pe, Tvec_pe, phie_pe, phis_pe, \
 uvec_ne, Tvec_ne, phie_ne, phis_ne, \

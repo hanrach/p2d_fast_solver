@@ -19,17 +19,15 @@ class CurrentCollectorEquation:
         self.sigeff = constants.sigma
         self.l = constants.l
         self.M = gridparam.M
-        M = self.M;
-        self.hx = self.l/M;
+        self.hx = self.l/self.M;
         self.delta_t=delta_t
-#        self.hx = 1/M; self.hy = 1/N;
         self.Iapp = Iapp
     
     def temperature(self,Tn,Tc,Tp, Told):
         hx = self.hx
 #        ans = (Tc - Told) -  ( self.lam*( Tn - 2*Tc + Tp)/hx**2 + \
 #        + Iapp**2/self.sigeff )*(delta_t/(self.rho*self.Cp))
-        ans = (Tc - Told) -  ( self.lam*( Tn - 2*Tc + Tp)/hx**2 + self.Iapp**2/self.sigeff )*(self.delta_t/(self.rho*self.Cp))
+        ans = (Tc - Told) - (self.lam*(Tn - 2*Tc + Tp)/hx**2 + self.Iapp**2/self.sigeff)*(self.delta_t/(self.rho*self.Cp))
         return ans.reshape()
     
     """ boundary condition """
@@ -40,8 +38,3 @@ class CurrentCollectorEquation:
     def bc_temp_z(self,T0,T1):
         bc = -self.lam*(T1-T0)/self.hx - h*((T0+T1)/2 - Tref)
         return bc.reshape()
-    
-
-
-#accq = CurrentCollectorEquation(a_cc_constants(),cc_grid_param())
-#zccq = CurrentCollectorEquation(z_cc_constants(),cc_grid_param())

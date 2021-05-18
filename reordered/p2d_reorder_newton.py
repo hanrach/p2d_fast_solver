@@ -16,10 +16,10 @@ def process_y(y,idx):
 @jax.jit
 def reorder_vec(b, idx):
     return b[idx]
-def newton(fn_fast, jac_fn_fast, U, cs_pe1, cs_ne1, gamma_p, gamma_n, idx, re_idx):
+def newton(fn_fast, jac_fn_fast, U, cs_pe1, cs_ne1, gamma_p, gamma_n, idx, re_idx, tol=1e-7):
     maxit = 10
-    tol = 1e-7
-
+    # tol = 1e-5
+    count = 0
     res = 100
     fail = 0
     Uold = U
@@ -44,7 +44,8 @@ def newton(fn_fast, jac_fn_fast, U, cs_pe1, cs_ne1, gamma_p, gamma_n, idx, re_id
 
     delta_reordered = reorder_vec(delta, re_idx)
     U = U - delta_reordered
-    #    res0 = norm(y/norm(U,np.inf),np.inf)
+    res0 = norm(y/norm(U,np.inf),np.inf)
+    # print(count, res0)
     count = 1
 
     jf_time = jf_time0;

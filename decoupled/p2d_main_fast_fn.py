@@ -11,7 +11,7 @@ import jax.numpy as np
 from jax import vmap
 from jax.config import config
 config.update('jax_enable_x64', True)
-from model.settings import delta_t,Tref
+from model.settings import Tref
 import numpy as onp
 import model.coeffs as coeffs
 import timeit
@@ -27,7 +27,7 @@ from model.p2d_param import get_battery_sections
 
 
 
-def p2d_fast_fn_short(Np, Nn, Mp, Mn, Ms, Ma,Mz, fn_fast, jac_fn, Iapp, Tf):
+def p2d_fast_fn_short(Np, Nn, Mp, Mn, Ms, Ma,Mz, delta_t, fn_fast, jac_fn, Iapp, Tf):
     start0 = timeit.default_timer()
     peq, neq, sepq, accq, zccq= get_battery_sections(Np, Nn, Mp, Mn, Ms, Ma, Mz, 10, Iapp)
     Ap, An, gamma_n, gamma_p, temp_p, temp_n = precompute(peq,neq)

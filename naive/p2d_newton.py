@@ -21,7 +21,7 @@ import time
 
 def newton_short(fn, jac_fn, U):
     maxit=10
-    tol = 1e-8
+    tol = 1e-7
     count = 0
     res = 100
     fail = 0
@@ -34,7 +34,7 @@ def newton_short(fn, jac_fn, U):
     end = timeit.default_timer()
     jf_time0 = end - start
     res0 = norm(y/norm(U,np.inf),np.inf)
-
+    # print(count, res0)
     start = timeit.default_timer()
     J = csr_matrix(J)
     end = timeit.default_timer()
@@ -72,6 +72,7 @@ def newton_short(fn, jac_fn, U):
         solve_time += end-start
         U = U - delta
         count = count + 1
+        # print(count, res)
 
     if fail ==0 and np.any(np.isnan(delta)):
         fail = 1

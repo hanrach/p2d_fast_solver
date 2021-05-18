@@ -10,7 +10,7 @@ from reordered.p2d_reorder_newton import newton
 from utils.reorder import reorder_tot
 from utils.unpack import unpack_vars
 
-def p2d_reorder_fn(Np, Nn, Mp, Mn, Ms, Ma, Mz, delta_t, lu_pe, lu_ne, temp_p, temp_n, gamma_p_vec, gamma_n_vec, fn_fast, jac_fn,  Iapp, Tf):
+def p2d_reorder_fn(Np, Nn, Mp, Mn, Ms, Ma, Mz, delta_t, lu_pe, lu_ne, temp_p, temp_n, gamma_p_vec, gamma_n_vec, fn_fast, jac_fn,  Iapp, Tf, tol=1e-7):
     start0 = timeit.default_timer()
     peq, neq, sepq, accq, zccq = get_battery_sections(Np, Nn, Mp, Ms, Mn, Ma, Mz, delta_t, Iapp)
 
@@ -133,7 +133,7 @@ def p2d_reorder_fn(Np, Nn, Mp, Mn, Ms, Ma, Mz, delta_t, lu_pe, lu_ne, temp_p, te
         cs_pe1 = (cI_pe_vec[Np:Mp * (Np + 2):Np + 2] + cI_pe_vec[Np + 1:Mp * (Np + 2):Np + 2]) / 2
         cs_ne1 = (cI_ne_vec[Nn:Mn * (Nn + 2):Nn + 2] + cI_ne_vec[Nn + 1:Mn * (Nn + 2):Nn + 2]) / 2
 
-        U_fast, info = newton(fn_fast, jac_fn, U_fast, cs_pe1, cs_ne1, gamma_p_vec, gamma_n_vec, idx_tot,re_idx)
+        U_fast, info = newton(fn_fast, jac_fn, U_fast, cs_pe1, cs_ne1, gamma_p_vec, gamma_n_vec, idx_tot,re_idx, tol)
 
         (fail, jf_time, overhead, solve_time) = info
         solve_time_tot += solve_time + c_lintime

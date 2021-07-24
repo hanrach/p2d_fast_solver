@@ -104,11 +104,14 @@ def p2d_reorder_fn(Np, Nn, Mp, Mn, Ms, Ma, Mz, delta_t, lu_pe, lu_ne, temp_p, te
     # lu_pe = lu["pe"];
     # lu_ne = lu["ne"]
 
+    init_csolve=timeit.default_timer();
     cI_pe_vec = lu_pe.solve(onp.asarray(cmat_rhs_pe))
     cI_ne_vec = lu_ne.solve(onp.asarray(cmat_rhs_ne))
 
     cs_pe1 = (cI_pe_vec[Np:Mp * (Np + 2):Np + 2] + cI_pe_vec[Np + 1:Mp * (Np + 2):Np + 2]) / 2
     cs_ne1 = (cI_ne_vec[Nn:Mn * (Nn + 2):Nn + 2] + cI_ne_vec[Nn + 1:Mn * (Nn + 2):Nn + 2]) / 2
+    end_init_csolve=timeit.default_timer();
+    print("initial csolve time:", end_init_csolve-init_csolve)
 
     start_init = timeit.default_timer()
     Jinit = jac_fn(U_fast, U_fast, cs_pe1, cs_ne1).block_until_ready()
@@ -117,10 +120,13 @@ def p2d_reorder_fn(Np, Nn, Mp, Mn, Ms, Ma, Mz, delta_t, lu_pe, lu_ne, temp_p, te
     init_time = end_init - start_init
     start1 = timeit.default_timer()
 
+    extra=0
+    tot_newton=0
     for i in range(0, int(steps)):
-
-        cmat_rhs_pe = cmat_format_p(cmat_pe)
-        cmat_rhs_ne = cmat_format_n(cmat_ne)
+        prep = timeit.default_timer()
+        cmat_rhs_pe = cmat_format_p(cmat_pe).block_until_ready()
+        cmat_rhs_ne = cmat_format_n(cmat_ne).block_until_ready()
+        prep_end=timeit.default_timer()
         # lu_pe = lu["pe"];
         # lu_ne = lu["ne"]
 
@@ -130,31 +136,38 @@ def p2d_reorder_fn(Np, Nn, Mp, Mn, Ms, Ma, Mz, delta_t, lu_pe, lu_ne, temp_p, te
         end = timeit.default_timer()
         c_lintime = end - start
 
+        prep1=timeit.default_timer()
         cs_pe1 = (cI_pe_vec[Np:Mp * (Np + 2):Np + 2] + cI_pe_vec[Np + 1:Mp * (Np + 2):Np + 2]) / 2
         cs_ne1 = (cI_ne_vec[Nn:Mn * (Nn + 2):Nn + 2] + cI_ne_vec[Nn + 1:Mn * (Nn + 2):Nn + 2]) / 2
+        prep1_end=timeit.default_timer()
 
+        newton_time=timeit.default_timer()
         U_fast, info = newton(fn_fast, jac_fn, U_fast, cs_pe1, cs_ne1, gamma_p_vec, gamma_n_vec, idx_tot,re_idx, tol)
+        newton_time_end=timeit.default_timer()
+        tot_newton += (newton_time_end-newton_time)
 
+        extra_time = timeit.default_timer()
         (fail, jf_time, overhead, solve_time) = info
         solve_time_tot += solve_time + c_lintime
         jf_tot_time += jf_time
         overhead_time += overhead
 
         # start_format = timeit.default_timer()
+
         Tvec_pe, Tvec_ne, phis_pe, phis_ne, jvec_pe, jvec_ne = unpack_vars(U_fast, Mp, Mn, Ms, Ma)
 
-        cII_p = form_c2_p_jit(temp_p, jvec_pe, Tvec_pe)
-        cII_n = form_c2_n_jit(temp_n, jvec_ne, Tvec_ne)
-        cmat_pe = np.reshape(cII_p, [Mp * (Np + 2)], order="F") + cI_pe_vec
-        cmat_ne = np.reshape(cII_n, [Mn * (Nn + 2)], order="F") + cI_ne_vec
+        cII_p = form_c2_p_jit(temp_p, jvec_pe, Tvec_pe).block_until_ready()
+        cII_n = form_c2_n_jit(temp_n, jvec_ne, Tvec_ne).block_until_ready()
+        cmat_pe = np.reshape(cII_p, [Mp * (Np + 2)], order="F").block_until_ready() + cI_pe_vec
+        cmat_ne = np.reshape(cII_n, [Mn * (Nn + 2)], order="F").block_until_ready() + cI_ne_vec
         # cmat_pe = combine_c(cII_p, cI_pe_vec, Mp, Np)
         # cmat_ne = combine_c(cII_n, cI_ne_vec, Mn, Nn)
 
-
-
         voltages.append(phis_pe[1] - phis_ne[Mn])
         temps.append(np.mean(Tvec_pe[1:Mp + 1]))
-        # end_format = timeit.default_timer()
+
+        end_extra_time=timeit.default_timer()
+        extra = extra + (end_extra_time-extra_time) + (prep_end - prep) + (prep1_end-prep1)
 
         # overhead_time += (end_format - start_format)
         if (fail == 0):
@@ -168,6 +181,8 @@ def p2d_reorder_fn(Np, Nn, Mp, Mn, Ms, Ma, Mz, delta_t, lu_pe, lu_ne, temp_p, te
     end1 = timeit.default_timer();
     tot_time = (end1 - start1)
     time = (tot_time, solve_time_tot, jf_tot_time, overhead_time, init_time)
+    print("extra time:", extra)
+    print("total newton time:", tot_newton)
     print("Done reordered simulation\n")
     return U_fast, cmat_pe, cmat_ne, voltages, temps, time
 

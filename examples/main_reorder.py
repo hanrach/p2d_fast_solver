@@ -1,12 +1,12 @@
 from jax.config import config
 
 config.update('jax_enable_x64', True)
-from utils.unpack import unpack_fast
+from __init__ import unpack_fast
 from decoupled.init import p2d_init_fast
-from utils.derivatives import partials, compute_jac
+from __init__ import partials, compute_jac
 from model.p2d_param import get_battery_sections
 import jax.numpy as np
-from utils.precompute_c import precompute
+from __init__ import precompute
 from scipy.sparse import csc_matrix
 from scikits.umfpack import splu
 from reordered.p2d_reorder_fn import p2d_reorder_fn

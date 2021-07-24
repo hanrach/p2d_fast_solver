@@ -42,14 +42,15 @@ def newton(fn_fast, jac_fn_fast, U, cs_pe1, cs_ne1, gamma_p, gamma_n, idx, re_id
     end = timeit.default_timer();
     solve_time0 = end - start
 
-    delta_reordered = reorder_vec(delta, re_idx)
+    start= timeit.default_timer();
+    delta_reordered = reorder_vec(delta, re_idx).block_until_ready()
     U = U - delta_reordered
-    res0 = norm(y/norm(U,np.inf),np.inf)
+    end = timeit.default_timer(); ohead = end-start;
     # print(count, res0)
     count = 1
 
     jf_time = jf_time0;
-    overhead = overhead_r;
+    overhead = overhead_r + ohead;
     solve_time = solve_time0;
     while (count < maxit and res > tol):
         start = timeit.default_timer();
@@ -60,10 +61,11 @@ def newton(fn_fast, jac_fn_fast, U, cs_pe1, cs_ne1, gamma_p, gamma_n, idx, re_id
 
         start = timeit.default_timer();
         y = process_y(y, idx).block_until_ready();
-        end = timeit.default_timer();
-        overhead += end - start
+
 
         res = norm(y / norm(U, np.inf), np.inf)
+        end = timeit.default_timer();
+        overhead += end - start
 
         start = timeit.default_timer();
         delta = solve_banded((11, 11), J, y)
@@ -72,14 +74,14 @@ def newton(fn_fast, jac_fn_fast, U, cs_pe1, cs_ne1, gamma_p, gamma_n, idx, re_id
 
         start = timeit.default_timer()
         delta_reordered = reorder_vec(delta, re_idx).block_until_ready()
-        end = timeit.default_timer()
-        overhead += end - start
-
         U = U - delta_reordered
         # print(count, res)
         count = count + 1
+        end = timeit.default_timer()
+        overhead += end - start
 
     #    print("Total to evaluate Jacobian:",jf_time)
+    start=timeit.default_timer()
     if fail == 0 and np.any(np.isnan(delta)):
         fail = 1
 
@@ -95,5 +97,8 @@ def newton(fn_fast, jac_fn_fast, U, cs_pe1, cs_ne1, gamma_p, gamma_n, idx, re_id
     else:
         fail == 0
 
-    info = (fail, jf_time, overhead, solve_time)
+    end = timeit.default_timer();
+
+
+    info = (fail, jf_time, overhead + (end-start), solve_time)
     return U, info

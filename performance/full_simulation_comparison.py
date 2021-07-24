@@ -121,3 +121,61 @@ pickle.dump( [linsolve_slow_avg, linsolve_fast_avg, linsolve_reorder_avg,
               eval_slow_avg, eval_fast_avg, eval_reorder_avg,
               init_slow_avg, init_fast_avg, init_reorder_avg,
               overhead_slow_avg, overhead_fast_avg, overhead_reorder_avg, Mp, Ms], open( "full_simulation_comparison2.p", "wb" ) )
+
+""" Run reorder simulation only"""
+def run_reorder(Np, Nn, Mp, Mn, Ms, Ma, Mz, delta_t, Iapp):
+    repnum = 10
+
+    linsolve_reorder_list = onp.zeros([repnum, len(Np)])
+    eval_reorder_list = onp.zeros([repnum, len(Np)])
+    overhead_reorder_list = onp.zeros([repnum, len(Np)])
+    tot_reorder_list = onp.zeros([repnum, len(Np)])
+    init_reorder_list = onp.zeros([repnum, len(Np)])
+
+
+    for j in range(0, repnum):
+        for i in range(0, len(Mp)):
+            peq, neq, sepq, accq, zccq = get_battery_sections(Np[i], Nn[i], Mp[i], Mn[i], Ms[i], Ma[i], Mz[i], delta_t, Iapp)
+
+            fn, _ = p2d_init_fast(Np[i], Nn[i], Mp[i], Mn[i], Ms[i], Ma[i], Mz[i], delta_t, Iapp)
+
+            # Precompute c
+            Ap, An, gamma_n, gamma_p, temp_p, temp_n = precompute(peq, neq)
+            gamma_p_vec = gamma_p * np.ones(Mp[i])
+            gamma_n_vec = gamma_n * np.ones(Mn[i])
+            lu_p = splu(csc_matrix(Ap))
+            lu_n = splu(csc_matrix(An))
+
+            partial_fns = partials(accq, peq, sepq, neq, zccq)
+            jac_fn = compute_jac(gamma_p_vec, gamma_n_vec, partial_fns, (Np[i], Nn[i], Mp[i], Mn[i], Ms[i], Ma[i], Mz[i]), (peq, neq, Iapp))
+            U_reorder, _, _, _, _, time_reorder = p2d_reorder_fn(Np[i], Nn[i], Mp[i], Mn[i], Ms[i], Ma[i], Mz[i], delta_t,
+                                                                             lu_p, lu_n, temp_p, temp_n,
+                                                                             gamma_p_vec, gamma_n_vec,
+                                                                             fn, jac_fn, Iapp,3520)
+
+            print("Simulation grid", Mp[i])
+
+            tot_reorder_list[j, i] = time_reorder[0]
+            linsolve_reorder_list[j, i] = time_reorder[1]
+            eval_reorder_list[j, i] = time_reorder[2]
+            overhead_reorder_list[j, i] = time_reorder[3]
+            init_reorder_list[j, i] = time_reorder[4]
+
+
+    linsolve_reorder_avg = np.mean(linsolve_reorder_list, 0)
+
+
+    tot_reorder_avg = np.mean(tot_reorder_list, 0)
+
+
+    eval_reorder_avg = np.mean(eval_reorder_list, 0)
+
+    init_reorder_avg = np.mean(init_reorder_list, 0)
+
+    overhead_reorder_avg = np.mean(overhead_reorder_list, 0)
+
+    pickle.dump( [ linsolve_reorder_avg,
+                  tot_reorder_avg,
+                  eval_reorder_avg,
+                  init_reorder_avg,
+                  overhead_reorder_avg, Mp, Ms], open( "data/reorder_simulation.p", "wb" ) )

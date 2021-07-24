@@ -27,10 +27,10 @@ from utils.derivatives import compute_jac, partials
 Np = 20
 Nn = 20
 Mp = 20
-Ms = 20
+Ms = 5
 Mn = 20
-Ma = 20
-Mz = 20
+Ma = 5
+Mz = 5
 Iapp = -30
 # i=0
 peq, neq, sepq, accq, zccq = get_battery_sections(Np, Nn, Mp, Mn, Ms, Ma, Mz, 10, Iapp)

@@ -28,12 +28,13 @@ Mn =[ 10,20,30, 40, 50]
 tol = [1e-7, 1e-6, 1e-6, 1e-5, 1e-5]
 delta_t = 10
 Iapp = -30
-repnum = 3
+repnum = 1
 
 
 linsolve_reorder_list = onp.zeros([repnum, len(Np)])
 
 
+extra_list = onp.zeros([repnum, len(Np)])
 eval_reorder_list = onp.zeros([repnum, len(Np)])
 
 
@@ -70,7 +71,7 @@ for j in range(0, repnum):
         eval_reorder_list[j, i] = time_reorder[2]
         overhead_reorder_list[j, i] = time_reorder[3]
         init_reorder_list[j, i] = time_reorder[4]
-
+        extra_list[j,i]=time_reorder[5]
 
 linsolve_reorder_avg = np.mean(linsolve_reorder_list, 0)
 
@@ -85,54 +86,60 @@ init_reorder_avg = np.mean(init_reorder_list, 0)
 
 overhead_reorder_avg = np.mean(overhead_reorder_list, 0)
 
-pickle.dump( [linsolve_reorder_avg,
-              tot_reorder_avg,
-              eval_reorder_avg,
-              init_reorder_avg,
-              overhead_reorder_avg, Mp, Ms, Ma], open( "reordered_performance.p", "wb" ) )
-
-import matplotlib.pyplot as plt
-def save_plot_results():
-    Ntot_list=[]
-    for i in range(0, len(Mp)):
-        Ntot_pe = (Mp[i] + 2) * (Mp[i]) + 4 * (Mp[i] + 2) + 2 * (Mp[i])
-        Ntot_ne = (Mp[i] + 2) * (Mp[i]) + 4 * (Mp[i] + 2) + 2 * (Mp[i])
-
-        Ntot_sep = 3 * (Ms[i] + 2)
-        Ntot_acc = Ms[i] + 2
-        Ntot_zcc = Ms[i] + 2
-        Ntot = Ntot_pe + Ntot_ne + Ntot_sep + Ntot_acc + Ntot_zcc
-        Ntot_list.append(Ntot)
-
-    plt.figure()
-    ax = plt.gca()
-    plt.rcParams.update({'font.size': 16})
-    plt.semilogy(Ntot_list,(tot_reorder_avg),'b+-',label="reordered");
-    ax.grid(which='major', axis='both')
-    plt.xlabel("Degree of freedom")
-    plt.ylabel("Total simulation time")
-    plt.legend(loc='best');
-    plt.savefig('decoupled_reordered_tot.pdf', bbox_inches='tight')
-
-    plt.figure()
-    ax = plt.gca()
-    plt.rcParams.update({'font.size': 16})
-    plt.semilogy(Ntot_list,(linsolve_reorder_avg),'b+-',label="reordered");
-    ax.grid(which='major', axis='both')
-    plt.xlabel("Degree of freedom")
-    plt.ylabel("Linear solve time")
-    plt.legend(loc='best');
-    plt.savefig('decoupled_reordered_linsolve.pdf', bbox_inches='tight')
-
-    plt.figure()
-    ax = plt.gca()
-    plt.rcParams.update({'font.size': 16})
-    plt.semilogy(Ntot_list,(eval_reorder_avg),'b+-',label="reordered");
-    ax.grid(which='major', axis='both')
-    plt.xlabel("Degree of freedom")
-    plt.ylabel("Function evaluation time")
-    plt.legend(loc='best');
-    plt.savefig('decoupled_reordered_eval.pdf', bbox_inches='tight')
-
+print("initial:", init_reorder_avg, "\n",
+      "time loop processing:", np.mean(extra_list,0), "\n",
+      "newton processing:", overhead_reorder_avg, "\n",
+      "eval:", eval_reorder_avg, "\n",
+      "linsolve:", linsolve_reorder_avg, "\n",
+      "total:", tot_reorder_avg)
+# pickle.dump( [linsolve_reorder_avg,
+#               tot_reorder_avg,
+#               eval_reorder_avg,
+#               init_reorder_avg,
+#               overhead_reorder_avg, Mp, Ms, Ma], open( "reordered_performance.p", "wb" ) )
+#
+# import matplotlib.pyplot as plt
+# def save_plot_results():
+#     Ntot_list=[]
+#     for i in range(0, len(Mp)):
+#         Ntot_pe = (Mp[i] + 2) * (Mp[i]) + 4 * (Mp[i] + 2) + 2 * (Mp[i])
+#         Ntot_ne = (Mp[i] + 2) * (Mp[i]) + 4 * (Mp[i] + 2) + 2 * (Mp[i])
+#
+#         Ntot_sep = 3 * (Ms[i] + 2)
+#         Ntot_acc = Ms[i] + 2
+#         Ntot_zcc = Ms[i] + 2
+#         Ntot = Ntot_pe + Ntot_ne + Ntot_sep + Ntot_acc + Ntot_zcc
+#         Ntot_list.append(Ntot)
+#
+#     plt.figure()
+#     ax = plt.gca()
+#     plt.rcParams.update({'font.size': 16})
+#     plt.semilogy(Ntot_list,(tot_reorder_avg),'b+-',label="reordered");
+#     ax.grid(which='major', axis='both')
+#     plt.xlabel("Degree of freedom")
+#     plt.ylabel("Total simulation time")
+#     plt.legend(loc='best');
+#     plt.savefig('decoupled_reordered_tot.pdf', bbox_inches='tight')
+#
+#     plt.figure()
+#     ax = plt.gca()
+#     plt.rcParams.update({'font.size': 16})
+#     plt.semilogy(Ntot_list,(linsolve_reorder_avg),'b+-',label="reordered");
+#     ax.grid(which='major', axis='both')
+#     plt.xlabel("Degree of freedom")
+#     plt.ylabel("Linear solve time")
+#     plt.legend(loc='best');
+#     plt.savefig('decoupled_reordered_linsolve.pdf', bbox_inches='tight')
+#
+#     plt.figure()
+#     ax = plt.gca()
+#     plt.rcParams.update({'font.size': 16})
+#     plt.semilogy(Ntot_list,(eval_reorder_avg),'b+-',label="reordered");
+#     ax.grid(which='major', axis='both')
+#     plt.xlabel("Degree of freedom")
+#     plt.ylabel("Function evaluation time")
+#     plt.legend(loc='best');
+#     plt.savefig('decoupled_reordered_eval.pdf', bbox_inches='tight')
+#
 
 # save_plot_results()

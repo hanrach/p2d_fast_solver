@@ -6,9 +6,11 @@ from jax import vmap
 import jax.numpy as np
 import numpy as onp
 from model.settings import Tref
-from reordered.p2d_reorder_newton import newton
+from reordered.p2d_reorder_newton import newton, process_y, reorder_vec
 from utils.reorder import reorder_tot
 from utils.unpack import unpack_vars
+
+
 
 def p2d_reorder_fn(Np, Nn, Mp, Mn, Ms, Ma, Mz, delta_t, lu_pe, lu_ne, temp_p, temp_n, gamma_p_vec, gamma_n_vec, fn_fast, jac_fn,  Iapp, Tf, tol=1e-7):
     start0 = timeit.default_timer()
@@ -115,10 +117,21 @@ def p2d_reorder_fn(Np, Nn, Mp, Mn, Ms, Ma, Mz, delta_t, lu_pe, lu_ne, temp_p, te
 
     start_init = timeit.default_timer()
     Jinit = jac_fn(U_fast, U_fast, cs_pe1, cs_ne1).block_until_ready()
+    y = fn_fast(U_fast, U_fast, cs_pe1, cs_ne1, gamma_p_vec, gamma_n_vec).block_until_ready()
+    y = process_y(y, idx_tot).block_until_ready()
+    vec = reorder_vec(y, re_idx).block_until_ready()
+    cmat_rhs_pe = cmat_format_p(cmat_pe).block_until_ready()
+    cmat_rhs_ne = cmat_format_n(cmat_ne).block_until_ready()
+    cII_p = form_c2_p_jit(temp_p, np.zeros(Mp), Tref + np.zeros(Mp + 2)).block_until_ready()
+    cII_n = form_c2_n_jit(temp_n, np.zeros(Mn), Tref + np.zeros(Mn + 2),).block_until_ready()
+    cmat_pe_init = np.reshape(cII_p, [Mp * (Np + 2)], order="F").block_until_ready() + cI_pe_vec
+    cmat_ne_init = np.reshape(cII_n, [Mn * (Nn + 2)], order="F").block_until_ready() + cI_ne_vec
+    U_fast_init, info_init = newton(fn_fast, jac_fn, U_fast, cs_pe1, cs_ne1, gamma_p_vec, gamma_n_vec, idx_tot, re_idx, tol)
     end_init = timeit.default_timer()
 
     init_time = end_init - start_init
     start1 = timeit.default_timer()
+
 
     extra=0
     tot_newton=0
@@ -180,7 +193,7 @@ def p2d_reorder_fn(Np, Nn, Mp, Mn, Ms, Ma, Mz, delta_t, lu_pe, lu_ne, temp_p, te
 
     end1 = timeit.default_timer();
     tot_time = (end1 - start1)
-    time = (tot_time, solve_time_tot, jf_tot_time, overhead_time, init_time)
+    time = (tot_time, solve_time_tot, jf_tot_time, overhead_time, init_time, extra)
     print("extra time:", extra)
     print("total newton time:", tot_newton)
     print("Done reordered simulation\n")

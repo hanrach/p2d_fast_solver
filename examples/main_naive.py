@@ -6,13 +6,21 @@ from utils.unpack import unpack
 from naive.init import p2d_init_slow
 from naive.p2d_main_fn import p2d_fn_short
 
+# Number of points in each battery section
 Np = 10
-Nn = 10
-Mp = 10
-Ms = 10
-Mn = 10
+Nn = Np
+Mp = Np
+Ms = Np
+Mn = Np
 Ma = 12
 Mz = 12
+
+# Time-step size
+delta_t = 10
+
+# Applied current
+Iapp = -30
+
 delta_t = 10
 Iapp = -30
 fn, jac_fn = p2d_init_slow(Np, Nn, Mp, Mn, Ms, Ma, Mz, delta_t, Iapp)

@@ -11,15 +11,21 @@ from scipy.sparse import csc_matrix
 from scikits.umfpack import splu
 from reordered.p2d_reorder_fn import p2d_reorder_fn
 
+# Number of points in each battery section
 Np = 30
-Nn = 30
-Mp = 30
-Ms = 30
-Mn = 30
-Ma = 30
-Mz = 30
+Nn = Np
+Mp = Np
+Ms = Np
+Mn = Np
+Ma = Np
+Mz = Np
+
+# Time-step size
 delta_t = 10
+
+# Applied current
 Iapp = -30
+
 peq, neq, sepq, accq, zccq = get_battery_sections(Np, Nn, Mp, Mn, Ms, Ma, Mz, delta_t, Iapp)
 fn, _ = p2d_init_fast(Np, Nn, Mp, Mn, Ms, Ma, Mz, delta_t, Iapp)
 

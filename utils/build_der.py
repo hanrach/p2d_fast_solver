@@ -1,3 +1,5 @@
+import functools
+
 from jax import lax
 import jax
 import jax.numpy as np
@@ -17,7 +19,7 @@ def array_update_sep(state, update_element):
 
 
 
-@jax.partial(jax.jit, static_argnums=(2, 3,))
+@functools.partial(jax.jit, static_argnums=(2, 3,))
 def build_dup(J, partial, Ma, Mp):
     ranger_p = np.arange(1, Mp)
     ranger_m = np.arange(0, Mp - 1)
@@ -48,7 +50,7 @@ def build_dup(J, partial, Ma, Mp):
     return J
 
 
-@jax.partial(jax.jit, static_argnums=(2, 3,))
+@functools.partial(jax.jit, static_argnums=(2, 3,))
 def build_djp(J, partial, Ma, Mp):
     ranger_c = np.arange(0, Mp)
     # djdj
@@ -62,7 +64,7 @@ def build_djp(J, partial, Ma, Mp):
     return J
 
 
-@jax.partial(jax.jit, static_argnums=(2, 3,))
+@functools.partial(jax.jit, static_argnums=(2, 3,))
 def build_detap(J, partial, Ma, Mp):
     # detadeta
     ranger_c = np.arange(0, Mp)
@@ -78,7 +80,7 @@ def build_detap(J, partial, Ma, Mp):
     return J
 
 
-@jax.partial(jax.jit, static_argnums=(2, 3,))
+@functools.partial(jax.jit, static_argnums=(2, 3,))
 def build_dphisp(J, partial, Ma, Mp):
     ranger_m = np.arange(0, Mp - 1)
     # dphis dphism
@@ -102,7 +104,7 @@ def build_dphisp(J, partial, Ma, Mp):
     return J
 
 
-@jax.partial(jax.jit, static_argnums=(2, 3,))
+@functools.partial(jax.jit, static_argnums=(2, 3,))
 def build_dphiep(J, partial, Ma, Mp):
     # dphie/dum
     ranger_m = np.arange(0, Mp - 1)
@@ -140,7 +142,7 @@ def build_dphiep(J, partial, Ma, Mp):
     return J
 
 
-@jax.partial(jax.jit, static_argnums=(2, 3,))
+@functools.partial(jax.jit, static_argnums=(2, 3,))
 def build_dTp(J, partial, Ma, Mp):
     # dT/dum
     ranger_m = np.arange(0, Mp - 1)
@@ -239,7 +241,7 @@ def build_bc_s(J, bc, Ma, Mp, Ms):
 
     return J
 
-# @jax.partial(jax.jit, static_argnums=(2,3,4))
+# @functools.partial(jax.jit, static_argnums=(2,3,4))
 def build_dus(J, partial, Ma, Mp, Ms):
     ranger_c = np.arange(0,Ms)
     p0 = Ma + 1
@@ -258,7 +260,7 @@ def build_dus(J, partial, Ma, Mp, Ms):
     J,_,_ = lax.scan(array_update_sep, (J, sep0 + 8, 6), (partial[5][0:Ms], ranger_c))[0]
     return J
 
-# @jax.partial(jax.jit, static_argnums=(2,3,4))
+# @functools.partial(jax.jit, static_argnums=(2,3,4))
 def build_dphies(J, partial, Ma, Mp, Ms):
     ranger_c = np.arange(0,Ms)
     p0 = Ma + 1
@@ -283,7 +285,7 @@ def build_dphies(J, partial, Ma, Mp, Ms):
     J, _, _ = lax.scan(array_update_sep, (J, sep0 + 8, 7), (partial[8][0:Ms], ranger_c))[0]
     return J
 
-# @jax.partial(jax.jit, static_argnums=(2,3,4))
+# @functools.partial(jax.jit, static_argnums=(2,3,4))
 def build_dTs(J, partial, Ma, Mp, Ms):
     ranger_c = np.arange(0,Ms)
     p0 = Ma + 1
@@ -306,7 +308,7 @@ def build_dTs(J, partial, Ma, Mp, Ms):
     J, _, _ = lax.scan(array_update_sep, (J, sep0 + 8, 8), (partial[7][0:Ms], ranger_c))[0]
     return J
 
-# @jax.partial(jax.jit, static_argnums=(2,3,4))
+# @functools.partial(jax.jit, static_argnums=(2,3,4))
 def build_bc_n(J, bc, Ma, Mp, Ms, Mn):
     p0 = Ma + 1
     sep0 = 4*(Mp+2) + 2*Mp + 1 + p0
@@ -334,7 +336,7 @@ def build_bc_n(J, bc, Ma, Mp, Ms, Mn):
     J = jax.ops.index_update(J, jax.ops.index[row_T, col_T], bc['T'])
     return J
 
-# @jax.partial(jax.jit, static_argnums=(2,3,4,5,))
+# @functools.partial(jax.jit, static_argnums=(2,3,4,5,))
 def build_dun(J, partial, Ma, Mp, Ms, Mn):
     p0 = Ma + 1
     n0 = p0 + 4 * (Mp + 2) + 2 * Mp + 3 * (Ms + 2) + 1
@@ -361,7 +363,7 @@ def build_dun(J, partial, Ma, Mp, Ms, Mn):
     J, _, _ = lax.scan(array_update, (J, n0 + 4 + 1, 10), (partial[6][0:Mp], ranger_c))[0]
     return J
 
-# @jax.partial(jax.jit, static_argnums=(2,3,4,5,))
+# @functools.partial(jax.jit, static_argnums=(2,3,4,5,))
 def build_djn(J, partial, Ma, Mp, Ms, Mn):
     ranger_c = np.arange(0, Mn)
     p0 = Ma + 1
@@ -376,7 +378,7 @@ def build_djn(J, partial, Ma, Mp, Ms, Mn):
     J, _, _ = lax.scan(array_update, (J, n0 + 4 + 2, 10), (partial[3][0:Mp], ranger_c))[0]
     return J
 
-# @jax.partial(jax.jit, static_argnums=(2,3,4,5,))
+# @functools.partial(jax.jit, static_argnums=(2,3,4,5,))
 def build_detan(J, partial, Ma, Mp, Ms, Mn):
     p0 = Ma + 1
     n0 = p0 + 4 * (Mp + 2) + 2 * Mp + 3 * (Ms + 2) + 1
@@ -393,7 +395,7 @@ def build_detan(J, partial, Ma, Mp, Ms, Mn):
     J, _, _ = lax.scan(array_update, (J, n0 + 4 + 1, 12), (partial[4][0:Mp], ranger_c))[0]
     return J
 
-# @jax.partial(jax.jit, static_argnums=(2,3,4,5,))
+# @functools.partial(jax.jit, static_argnums=(2,3,4,5,))
 def build_dphisn(J, partial, Ma, Mp, Ms, Mn):
     p0 = Ma + 1
     n0 = p0 + 4 * (Mp + 2) + 2 * Mp + 3 * (Ms + 2) + 1
@@ -412,7 +414,7 @@ def build_dphisn(J, partial, Ma, Mp, Ms, Mn):
     J, _, _ = lax.scan(array_update, (J, n0 + 4 + 1, 13), (partial[3][0:Mp], ranger_c))[0]
     return J
 
-# @jax.partial(jax.jit, static_argnums=(2,3,4,5,))
+# @functools.partial(jax.jit, static_argnums=(2,3,4,5,))
 def build_dphien(J, partial, Ma, Mp, Ms, Mn):
     p0 = Ma + 1
     n0 = p0 + 4 * (Mp + 2) + 2 * Mp + 3 * (Ms + 2) + 1
@@ -450,7 +452,7 @@ def build_dphien(J, partial, Ma, Mp, Ms, Mn):
     J, _, _ = lax.scan(array_update, (J, n0 + 4 + 1, 14), (partial[9][0:Mp], ranger_c))[0]
     return J
 
-# @jax.partial(jax.jit, static_argnums=(2,3,4,5,))
+# @functools.partial(jax.jit, static_argnums=(2,3,4,5,))
 def build_dTn(J, partial, Ma, Mp, Ms, Mn):
     p0 = Ma + 1
     n0 = p0 + 4 * (Mp + 2) + 2 * Mp + 3 * (Ms + 2) + 1
@@ -500,7 +502,7 @@ def build_dTn(J, partial, Ma, Mp, Ms, Mn):
     J, _, _ = lax.scan(array_update, (J, n0 + 4 + 2, 14), (partial[11][0:Mn], ranger_c))[0]
     return J
 
-# @jax.partial(jax.jit, static_argnums=(2,3,4,5,6,))
+# @functools.partial(jax.jit, static_argnums=(2,3,4,5,6,))
 def build_bc_cc(J, bc, Ma, Mp, Ms, Mn, Mz):
     p0 = Ma + 1
     sep0 = 4 * (Mp + 2) + 2 * Mp + 1 + p0
@@ -521,7 +523,7 @@ def array_update_acc(state, update_element):
     J, start_index, row = state
     return (jax.ops.index_update(J, jax.ops.index[row, start_index + ind], element), start_index, row), ind
 
-# @jax.partial(jax.jit, static_argnums=(2,))
+# @functools.partial(jax.jit, static_argnums=(2,))
 def build_dTa(J, partial, Ma):
     ranger = np.arange(0, Ma)
     # dT/dTm
@@ -535,7 +537,7 @@ def build_dTa(J, partial, Ma):
 
     return J
 
-# @jax.partial(jax.jit, static_argnums=(2,3,4,5,6,))
+# @functools.partial(jax.jit, static_argnums=(2,3,4,5,6,))
 def build_dTz(J, partial, Ma, Mp, Ms, Mn, Mz):
     p0 = Ma + 1
     sep0 = 4 * (Mp + 2) + 2 * Mp + 1 + p0

@@ -1,4 +1,6 @@
+import functools
 import timeit
+
 import jax
 import model.coeffs as coeffs
 from model.p2d_param import get_battery_sections
@@ -51,7 +53,7 @@ def p2d_reorder_fn(Np, Nn, Mp, Mn, Ms, Ma, Mz, delta_t, lu_pe, lu_ne, temp_p, te
         val = vmap(fn, (0, None, 0), 1)(j, temp, Deff_vec)
         return val
 
-    @jax.partial(jax.jit, static_argnums=(2, 3,))
+    @functools.partial(jax.jit, static_argnums=(2, 3,))
     def combine_c(cII, cI_vec, M,N):
         return np.reshape(cII, [M * (N + 2)], order="F") + cI_vec
 
@@ -191,13 +193,10 @@ def p2d_reorder_fn(Np, Nn, Mp, Mn, Ms, Ma, Mz, delta_t, lu_pe, lu_ne, temp_p, te
             print("timestep:", i)
             break
 
-    end1 = timeit.default_timer();
+    end1 = timeit.default_timer()
     tot_time = (end1 - start1)
     time = (tot_time, solve_time_tot, jf_tot_time, overhead_time, init_time, extra)
     print("extra time:", extra)
     print("total newton time:", tot_newton)
     print("Done reordered simulation\n")
     return U_fast, cmat_pe, cmat_ne, voltages, temps, time
-
-
-

@@ -7,8 +7,15 @@ The model is taken from the P2D model outlined in the [paper](http://web.mit.edu
 
 ## Getting started
 
+### pip method (may not work on recent linux versions)
+
 * `pip install numpy scipy` (or get these from your OS)
 * `pip install jax[cpu]`
 * `pip install scikit-umfpack`
 
-Then run `examples/main_reorder.py`.
+### conda method (tested on linux)
+
+* install conda according to your system : <https://www.anaconda.com/download>
+* use the environment.yml to create a suitable conda environment : `conda env create -f environment.yml`
+
+Then run `examples/main_reorder.py` or `examples/reorder_test.py`

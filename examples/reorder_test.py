@@ -753,7 +753,7 @@ Joutput = compute_der(U_fast_new, U_fast, cs_pe1, cs_ne1).block_until_ready()
 
 diff0 = abs(Joutput - Jab)
 diff0_matrix = np.zeros_like(Joutput)
-diff0_matrix[Jab.nonzero()] = diff0[Jab.nonzero()]/abs(Jab[Jab.nonzero()])
+diff0_matrix.at[Jab.nonzero()].set(diff0[Jab.nonzero()]/abs(Jab[Jab.nonzero()]))
 plt.figure()
 plt.imshow(diff0_matrix);
 plt.colorbar()

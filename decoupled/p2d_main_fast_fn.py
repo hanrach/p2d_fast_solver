@@ -23,7 +23,7 @@ image_folder = 'images'
 video_name = 'video.avi'
 from utils.precompute_c import precompute
 from model.p2d_param import get_battery_sections
-
+from functools import partial
 
 
 
@@ -71,7 +71,7 @@ def p2d_fast_fn_short(Np, Nn, Mp, Mn, Ms, Ma,Mz, delta_t, fn_fast, jac_fn, Iapp,
         val=vmap(fn,(0,None,0),1)(j,temp,Deff_vec)
         return val
 
-    @jax.partial(jax.jit, static_argnums=(2, 3,))
+    @partial(jax.jit, static_argnums=(2, 3,))
     def combine_c(cII, cI_vec, M,N):
         return np.reshape(cII, [M * (N + 2)], order="F") + cI_vec
     

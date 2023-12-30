@@ -9,13 +9,15 @@ import jax.numpy as np
 def array_update(state, update_element):
     element, ind = update_element
     J, start_index, row = state
-    return (jax.ops.index_update(J, jax.ops.index[row, start_index + 6 * ind], element), start_index, row), ind
+    #return (jax.ops.index_update(J, jax.ops.index[row, start_index + 6 * ind], element), start_index, row), ind
+    return (J.at[row, start_index + 6 * ind].set(element), start_index, row), ind
 
 @jax.jit
 def array_update_sep(state, update_element):
     element, ind = update_element
     J, start_index, row = state
-    return (jax.ops.index_update(J, jax.ops.index[row, start_index + 3 * ind], element), start_index, row), ind
+    #return (jax.ops.index_update(J, jax.ops.index[row, start_index + 3 * ind], element), start_index, row), ind
+    return (J.at[row, start_index + 3 * ind].set(element), start_index, row), ind
 
 
 
@@ -25,11 +27,14 @@ def build_dup(J, partial, Ma, Mp):
     ranger_m = np.arange(0, Mp - 1)
     # dudTp
     J, _, _ = lax.scan(array_update, (J, 5  + 5+ Ma + 1, 0), (partial[5][0:-1], ranger_p))[0]
-    J = jax.ops.index_update(J, jax.ops.index[2, Ma + 1 + 5 + 6 * Mp + 3], partial[5][-1])
+    #J = jax.ops.index_update(J, jax.ops.index[2, Ma + 1 + 5 + 6 * Mp + 3], partial[5][-1])
+    J = J.at[2, Ma + 1 + 5 + 6 * Mp + 3].set(partial[5][-1])
     # dudum
 
     J, _, _ = lax.scan(array_update, (J, Ma + 1 + 5, 17), (partial[0][1:Mp], ranger_m))[0]
-    J = jax.ops.index_update(J, jax.ops.index[16, Ma + 1], partial[0][0])
+    #J = jax.ops.index_update(J, jax.ops.index[16, Ma + 1], partial[0][0])
+    J = J.at[16, Ma + 1].set(partial[0][0])
+
     # duduc
     ranger_c = np.arange(0, Mp)
     J, _, _ = lax.scan(array_update, (J, Ma + 1 + 5, 11), (partial[1][0:Mp], ranger_c))[0]
@@ -38,7 +43,8 @@ def build_dup(J, partial, Ma, Mp):
     # dudTm
     J, _, _ = lax.scan(array_update, (J, Ma + 1 + 5 + 5, 12), (partial[3][1:Mp], ranger_m))[0]
     # TODO
-    J = jax.ops.index_update(J, jax.ops.index[13, Ma + 1 + 3], partial[3][0])
+    #J = jax.ops.index_update(J, jax.ops.index[13, Ma + 1 + 3], partial[3][0])
+    J = J.at[13, Ma + 1 + 3].set(partial[3][0])
     # dup[3][0] not assigned
 
     # dudTc
@@ -85,7 +91,8 @@ def build_dphisp(J, partial, Ma, Mp):
     ranger_m = np.arange(0, Mp - 1)
     # dphis dphism
     J, _, _ = lax.scan(array_update, (J, Ma + 1 + 5 + 3, 17), (partial[0][1:Mp], ranger_m))[0]
-    J = jax.ops.index_update(J, jax.ops.index[18, Ma + 1 + 1], partial[0][0])
+    #J = jax.ops.index_update(J, jax.ops.index[18, Ma + 1 + 1], partial[0][0])
+    J = J.at[18, Ma + 1 + 1].set(partial[0][0])
     # dphis dphisc
     ranger_c = np.arange(0, Mp)
     J, _, _ = lax.scan(array_update, (J, Ma + 1 + 5 + 3, 11), (partial[1][0:Mp], ranger_c))[0]
@@ -95,7 +102,8 @@ def build_dphisp(J, partial, Ma, Mp):
     # J, _, _ = lax.scan(array_update, (J, Ma + 1 + 5 + 3, 5), (partial[2][1:Mp], ranger_p))[0]
 
     # TODO: check
-    J = jax.ops.index_update(J, jax.ops.index[7, 5 + 6*Mp + 1 + Ma + 1], partial[2][Mp-1])
+    #J = jax.ops.index_update(J, jax.ops.index[7, 5 + 6*Mp + 1 + Ma + 1], partial[2][Mp-1])
+    J = J.at[7, 5 + 6*Mp + 1 + Ma + 1].set(partial[2][Mp-1])
     J, _, _ = lax.scan(array_update, (J, Ma + 1 + 5 + 3, 5), (partial[2][0:Mp-1], ranger_p))[0]
 
 
@@ -108,7 +116,8 @@ def build_dphisp(J, partial, Ma, Mp):
 def build_dphiep(J, partial, Ma, Mp):
     # dphie/dum
     ranger_m = np.arange(0, Mp - 1)
-    J = jax.ops.index_update(J, jax.ops.index[20, Ma + 1], partial[0][0])
+    #J = jax.ops.index_update(J, jax.ops.index[20, Ma + 1], partial[0][0])
+    J = J.at[20, Ma + 1].set(partial[0][0])
     J, _, _ = lax.scan(array_update, (J, Ma + 1 + 5, 21), (partial[0][1:Mp], ranger_m))[0]
     # dphie/duc
     ranger_c = np.arange(0, Mp)
@@ -116,14 +125,16 @@ def build_dphiep(J, partial, Ma, Mp):
     # dphie/dup
     J, _, _ = lax.scan(array_update, (J, 5 + 6 * 1 + Ma + 1, 9), (partial[2][0:Mp], ranger_c))[0]
     # dphie/dphiem
-    J = jax.ops.index_update(J, jax.ops.index[18, Ma + 1 + 2], partial[3][0])  # check
+    #J = jax.ops.index_update(J, jax.ops.index[18, Ma + 1 + 2], partial[3][0])  # check
+    J = J.at[18, Ma + 1 + 2].set(partial[3][0])
     J, _, _ = lax.scan(array_update, (J, Ma + 1 + 5 + 4, 17), (partial[3][1:Mp], ranger_m))[0]
     # dphie/dphiec
     J, _, _ = lax.scan(array_update, (J, Ma + 1 + 5 + 4, 11), (partial[4][0:Mp], ranger_c))[0]
     # dphie/dphiep
     ranger_p = np.arange(1, Mp)
     J, _, _ = lax.scan(array_update, (J, Ma + 1 + 5 + 4, 5), (partial[5][0:Mp - 1], ranger_p))[0]
-    J = jax.ops.index_update(J, jax.ops.index[7, 5 + 6 * Mp + 2 + Ma + 1], partial[5][Mp - 1])
+    #J = jax.ops.index_update(J, jax.ops.index[7, 5 + 6 * Mp + 2 + Ma + 1], partial[5][Mp - 1])
+    J = J.at[7, 5 + 6 * Mp + 2 + Ma + 1].set(partial[5][Mp -1])
     # dphiep/dTm
     # TODO
     # dphpep/dTm[0] check
@@ -135,7 +146,8 @@ def build_dphiep(J, partial, Ma, Mp):
 
     # dphiep/dTp
     J, _, _ = lax.scan(array_update, (J, 5 + 5 + Ma + 1, 4), (partial[8][0:Mp - 1], ranger_p))[0]
-    J = jax.ops.index_update(J, jax.ops.index[6, 5 + 6 * Mp + 3 + Ma + 1], partial[8][Mp - 1])
+    #J = jax.ops.index_update(J, jax.ops.index[6, 5 + 6 * Mp + 3 + Ma + 1], partial[8][Mp - 1])
+    J = J.at[6, 5 + 6 * Mp + 3 + Ma + 1].set(partial[8][Mp - 1])
 
     # dphie/dj
     J, _, _ = lax.scan(array_update, (J, Ma + 1 + 5 + 1, 14), (partial[9][0:Mp], ranger_c))[0]
@@ -146,7 +158,8 @@ def build_dphiep(J, partial, Ma, Mp):
 def build_dTp(J, partial, Ma, Mp):
     # dT/dum
     ranger_m = np.arange(0, Mp - 1)
-    J = jax.ops.index_update(J, jax.ops.index[21, Ma + 1], partial[0][0])
+    #J = jax.ops.index_update(J, jax.ops.index[21, Ma + 1], partial[0][0])
+    J = J.at[21, Ma + 1].set(partial[0][0])
     J, _, _ = lax.scan(array_update, (J, Ma + 1 + 5, 22), (partial[0][1:Mp], ranger_m))[0]
 
     # dT/duc
@@ -158,31 +171,38 @@ def build_dTp(J, partial, Ma, Mp):
 
     # dT/phiem
     J, _, _ = lax.scan(array_update, (J, Ma + 1 + 5 + 4, 18), (partial[3][1:Mp], ranger_m))[0]
-    J = jax.ops.index_update(J, jax.ops.index[19, Ma + 1 + 2], partial[3][0])
+    #J = jax.ops.index_update(J, jax.ops.index[19, Ma + 1 + 2], partial[3][0])
+    J = J.at[19, Ma + 1 + 2].set(partial[3][0])
 
     # dT/dphiep
     ranger_p = np.arange(1, Mp)
     J, _, _ = lax.scan(array_update, (J, Ma + 1 + 5 + 4, 6), (partial[4][0:Mp - 1], ranger_p))[0]
-    J = jax.ops.index_update(J, jax.ops.index[8, 5 + 6 * Mp + 2 + Ma + 1], partial[4][Mp - 1])
+    #J = jax.ops.index_update(J, jax.ops.index[8, 5 + 6 * Mp + 2 + Ma + 1], partial[4][Mp - 1])
+    J = J.at[8, 5 + 6 * Mp + 2 + Ma + 1].set(partial[4][Mp - 1])
 
     # dT/dphism
     J, _, _ = lax.scan(array_update, (J, 5 + 3 + Ma + 1, 19), (partial[5][1:Mp], ranger_m))[0]
-    J = jax.ops.index_update(J, jax.ops.index[20, Ma + 1 + 1], partial[5][0])
+    #J = jax.ops.index_update(J, jax.ops.index[20, Ma + 1 + 1], partial[5][0])
+    J = J.at[20, Ma + 1 + 1].set(partial[5][0])
 
     # dT/dphisp
     J, _, _ = lax.scan(array_update, (J, 5 + 3 + Ma + 1, 7), (partial[6][0:Mp - 1], ranger_p))[0]
-    J = jax.ops.index_update(J, jax.ops.index[9, 5 + 6 * Mp + 2 + Ma], partial[6][Mp - 1])
+    #J = jax.ops.index_update(J, jax.ops.index[9, 5 + 6 * Mp + 2 + Ma], partial[6][Mp - 1])
+    J = J.at[9, 5 + 6 * Mp + 2 + Ma].set(partial[6][Mp - 1])
 
     # dT/dTm
     J, _, _ = lax.scan(array_update, (J, Ma + 1 + 5 + 5, 17), (partial[7][1:Mp], ranger_m))[0]
-    J = jax.ops.index_update(J, jax.ops.index[18, Ma + 1 + 3], partial[7][0])
+    #J = jax.ops.index_update(J, jax.ops.index[18, Ma + 1 + 3], partial[7][0])
+    J = J.at[18, Ma + 1 + 3].set(partial[7][0])
 
     # dT/dTc
     J, _, _ = lax.scan(array_update, (J, Ma + 1 + 5 + 5, 11), (partial[8][0:Mp], ranger_c))[0]
 
     # dT/dTp
     J, _, _ = lax.scan(array_update, (J, Ma + 1 + 5 + 5, 5), (partial[9][0:Mp - 1], ranger_p))[0]
-    J = jax.ops.index_update(J, jax.ops.index[7, 5 + 6 * Mp + 2 + Ma + 1 + 1], partial[9][Mp])
+    #J = jax.ops.index_update(J, jax.ops.index[7, 5 + 6 * Mp + 2 + Ma + 1 + 1], partial[9][Mp])
+    J = J.at[7, 5 + 6 * Mp + 2 + Ma + 1 + 1].set(partial[9][Mp])
+
 
     # dT/dj
     J, _, _ = lax.scan(array_update, (J, Ma + 1 + 5 + 1, 15), (partial[10][0:Mp], ranger_c))[0]
@@ -200,24 +220,29 @@ def build_bc_p(J, bc, Ma, Mp):
     col_u = p0 + np.array(
         [0, 5, 6 * (Mp - 1) + 5, 6 * Mp + 5, 6 * (Mp - 1) + 10, 6 * Mp + 5 + 3, sep_o, sep_o + 3, sep_o + 2,
          sep_o + 2 + 3])
-    J = jax.ops.index_update(J, jax.ops.index[row_u, col_u], bc['u'])
+    #J = jax.ops.index_update(J, jax.ops.index[row_u, col_u], bc['u'])
+    J = J.at[row_u, col_u].set(bc['u'])
 
     row_phis = np.array([11, 4, 15, 11])
     col_phis = p0 + np.array([1, 5 + 3, 5 + 6*(Mp-1) + 3, 5 + 6*Mp + 1])
-    J = jax.ops.index_update(J, jax.ops.index[row_phis, col_phis], bc['phis'])
+    #J = jax.ops.index_update(J, jax.ops.index[row_phis, col_phis], bc['phis'])
+    J = J.at[row_phis, col_phis].set(bc['phis'])
     # TODO: check if this is correct
-    J = jax.ops.index_update(J, jax.ops.index[7, p0 + 5 + 6*Mp + 1 ], 1)
+    #J = jax.ops.index_update(J, jax.ops.index[7, p0 + 5 + 6*Mp + 1 ], 1)
+    J = J.at[7, p0 + 5 + 6 * Mp + 1].set(1)
 
     row_phie = np.array([11, 4, 15, 11, 8, 5, 19, 13, 9, 6, 14, 10, 7, 4])
     col_phie = p0 + np.array([2, 5 + 4, 5 + 6*(Mp-1) + 4, 5 + 6*Mp +2,
                               sep_o + 1, sep_o + 3 + 1, 5+6*(Mp-1),
                               5 + 6*Mp, sep_o, sep_o + 3, 5 + 6*(Mp-1) + 5, 5 + 6*Mp + 3,
                               sep_o + 2, sep_o + 3 + 2])
-    J = jax.ops.index_update(J, jax.ops.index[row_phie, col_phie], bc['phie'])
+    #J = jax.ops.index_update(J, jax.ops.index[row_phie, col_phie], bc['phie'])
+    J = J.at[row_phie, col_phie].set(bc['phie'])
 
     row_T = np.array([15, 10, 11, 4, 15, 11, 8, 5])
     col_T = np.array([Ma, Ma + 1 + 4, Ma + 1 + 3, Ma + 1 + 10, 5 + 6*(Mp-1)+5+Ma+1, 5+6*Mp+3+Ma+1, Ma + 1 + sep_o + 2, Ma + 1 + sep_o +2 + 3])
-    J = jax.ops.index_update(J, jax.ops.index[row_T, col_T], bc['T'])
+    #J = jax.ops.index_update(J, jax.ops.index[row_T, col_T], bc['T'])
+    J = J.at[row_T, col_T].set(bc['T'])
     return J
 
 # @jax.jit
@@ -228,16 +253,19 @@ def build_bc_s(J, bc, Ma, Mp, Ms):
     n0 = p0 + 4*(Mp+2) + 2*Mp  + 3*(Ms+2) + 1
     row_u = np.array([11, 8, 21, 15, 8, 4, 14, 11])
     col_u = np.array([sep0, sep0 + 3, 5 + 6*(Mp-1) + p0, 5+6*Mp + p0, n0, n0 + 4, sep0 + 3*Ms, sep0 + 3*(Ms+1) ])
-    J = jax.ops.index_update(J, jax.ops.index[row_u, col_u], bc)
+    #J = jax.ops.index_update(J, jax.ops.index[row_u, col_u], bc)
+    J = J.at[row_u, col_u].set(bc)
 
     row_phie = np.array([18, 14, 11, 8, 7, 1, 14, 11])
     col_phie = np.array([5+6*(Mp-1) + 4 + p0, 5 + 6*Mp +2 + p0, sep0+1, sep0 + 1 + 3, n0+2, n0+4 + 4, sep0 + 3*Ms + 1, sep0 + 3*Ms + 4])
 
-    J = jax.ops.index_update(J, jax.ops.index[row_phie, col_phie], bc)
+    #J = jax.ops.index_update(J, jax.ops.index[row_phie, col_phie], bc)
+    J = J.at[row_phie, col_phie].set(bc)
 
     row_T = np.array([18, 14, 11,8, 14, 11, 7, 1])
     col_T = np.array([5 + 6*(Mp-1) + 5 + p0, 5 + 6*Mp + 3 + p0, sep0 + 2, sep0 + 5, sep0 + 3*Ms + 2, sep0 + 3*Ms + 5, n0 + 3, n0 + 4 + 5])
-    J = jax.ops.index_update(J, jax.ops.index[row_T, col_T], bc)
+    #J = jax.ops.index_update(J, jax.ops.index[row_T, col_T], bc)
+    J = J.at[row_T, col_T].set(bc)
 
     return J
 
@@ -318,22 +346,26 @@ def build_bc_n(J, bc, Ma, Mp, Ms, Mn):
                       sep0 + 3*Ms, sep0 + 3*Ms + 3,
                       sep0 + 3*Ms + 2, sep0 + 3*Ms + 5,
                       n0 + 4 + 6*(Mn-1), n0 + 4 + 6*Mn])
-    J = jax.ops.index_update(J, jax.ops.index[row_u, col_u], bc['u'])
+    #J = jax.ops.index_update(J, jax.ops.index[row_u, col_u], bc['u'])
+    J = J.at[row_u, col_u].set(bc['u'])
 
     row_phie = np.array([11, 5, 18, 15, 13, 9, 19, 16, 10, 4, 17, 14, 15, 11])
     col_phie = np.array([n0 + 2, n0 + 8, sep0 + 3*Ms + 1, sep0 + 3*Ms + 4,
                          n0, n0 + 4, sep0 + 3*Ms, sep0 + 3*(Ms + 1),
                          n0 + 3, n0 + 9, sep0 + 3*Ms + 2, sep0 + 3*Ms + 5, n0 + 4 + 6*(Mn-1) + 4, n0 + 4 + 6*Mn +2])
-    J = jax.ops.index_update(J, jax.ops.index[row_phie, col_phie], bc['phie'])
+    #J = jax.ops.index_update(J, jax.ops.index[row_phie, col_phie], bc['phie'])
+    J = J.at[row_phie, col_phie].set(bc['phie'])
 
     row_phis = np.array([11, 5, 15, 11])
     col_phis = np.array([n0 + 1, n0 + 7, n0 + 4 + 6*(Mn-1) + 3, n0 + 4 + 6*Mn + 1])
-    J = jax.ops.index_update(J, jax.ops.index[row_phis, col_phis], bc['phis'])
+    #J = jax.ops.index_update(J, jax.ops.index[row_phis, col_phis], bc['phis'])
+    J = J.at[row_phis, col_phis].set(bc['phis'])
 
     row_T = np.array([18,15,11, 5, 15, 11, 10, 9])
     col_T = np.array([sep0 + 3*Ms + 2, sep0 + 3*Ms + 5, n0 + 3, n0 + 9,
                       n0 + 4 + 6*(Mn-1) + 5, n0 + 4 + 6*Mn + 3, n0 + 4 + 6*Mn + 4, n0 + 4 + 6*Mn + 4 + 1 ])
-    J = jax.ops.index_update(J, jax.ops.index[row_T, col_T], bc['T'])
+    #J = jax.ops.index_update(J, jax.ops.index[row_T, col_T], bc['T'])
+    J = J.at[row_T, col_T].set(bc['T'])
     return J
 
 # @functools.partial(jax.jit, static_argnums=(2,3,4,5,))
@@ -344,11 +376,13 @@ def build_dun(J, partial, Ma, Mp, Ms, Mn):
     ranger_m = np.arange(0, Mn - 1)
     # dudTp
     J, _, _ = lax.scan(array_update, (J, n0 + 4 + 5, 0), (partial[5][0:-1], ranger_p))[0]
-    J = jax.ops.index_update(J, jax.ops.index[2, n0 + 4 + 6*Mn], partial[5][-1])
+    #J = jax.ops.index_update(J, jax.ops.index[2, n0 + 4 + 6*Mn], partial[5][-1])
+    J = J.at[2, n0 + 4 + 6*Mn].set(partial[5][-1])
     # dudum
 
     J, _, _ = lax.scan(array_update, (J, n0 + 4, 17), (partial[0][1:Mn], ranger_m))[0]
-    J = jax.ops.index_update(J, jax.ops.index[15, n0], partial[0][0])
+    #J = jax.ops.index_update(J, jax.ops.index[15, n0], partial[0][0])
+    J = J.at[15, n0].set(partial[0][0])
     # duduc
     ranger_c = np.arange(0, Mn)
     J, _, _ = lax.scan(array_update, (J, n0 + 4, 11), (partial[1][0:Mp], ranger_c))[0]
@@ -356,7 +390,8 @@ def build_dun(J, partial, Ma, Mp, Ms, Mn):
     J, _, _ = lax.scan(array_update, (J, n0 + 4 + 6, 5), (partial[2][0:Mp], ranger_c))[0]
     # dudTm
     J, _, _ = lax.scan(array_update, (J, n0 + 4 + 5, 12), (partial[3][1:Mp], ranger_m))[0]
-    J = jax.ops.index_update(J, jax.ops.index[12, n0 + 3], partial[3][0])
+    #J = jax.ops.index_update(J, jax.ops.index[12, n0 + 3], partial[3][0])
+    J = J.at[12, n0 + 3].set(partial[3][0])
     # dudTc
     J, _, _ = lax.scan(array_update, (J, n0 + 4 + 5, 6), (partial[4][0:Mp], ranger_c))[0]
     # dudj
@@ -402,13 +437,15 @@ def build_dphisn(J, partial, Ma, Mp, Ms, Mn):
     ranger_m = np.arange(0, Mn - 1)
     # dphis dphism
     J, _, _ = lax.scan(array_update, (J, n0 + 4 + 3, 17), (partial[0][1:Mn], ranger_m))[0]
-    J = jax.ops.index_update(J, jax.ops.index[17, n0 + 1], partial[0][0])
+    #J = jax.ops.index_update(J, jax.ops.index[17, n0 + 1], partial[0][0])
+    J = J.at[17, n0 + 1].set(partial[0][0])
     # dphis dphisc
     ranger_c = np.arange(0, Mn)
     J, _, _ = lax.scan(array_update, (J, n0 + 4 + 3, 11), (partial[1][0:Mn], ranger_c))[0]
     # dphis dphisp
     ranger_p = np.arange(1, Mn)
-    J = jax.ops.index_update(J, jax.ops.index[7, n0 + 4 + 6*Mn + 1 ], partial[2][Mn-1])
+    #J = jax.ops.index_update(J, jax.ops.index[7, n0 + 4 + 6*Mn + 1], partial[2][Mn-1])
+    J = J.at[7, n0 + 4 + 6*Mn + 1].set(partial[2][Mn - 1])
     J, _, _ = lax.scan(array_update, (J, n0 + 4 + 3, 5), (partial[2][0:Mn-1], ranger_p))[0]
     # dphis dj
     J, _, _ = lax.scan(array_update, (J, n0 + 4 + 1, 13), (partial[3][0:Mp], ranger_c))[0]
@@ -420,7 +457,8 @@ def build_dphien(J, partial, Ma, Mp, Ms, Mn):
     n0 = p0 + 4 * (Mp + 2) + 2 * Mp + 3 * (Ms + 2) + 1
     # dphie/dum
     ranger_m = np.arange(0, Mn - 1)
-    J = jax.ops.index_update(J, jax.ops.index[19, n0], partial[0][0])
+    #J = jax.ops.index_update(J, jax.ops.index[19, n0], partial[0][0])
+    J = J.at[19, n0].set(partial[0][0])
     J, _, _ = lax.scan(array_update, (J, n0 + 4, 21), (partial[0][1:Mn], ranger_m))[0]
     # dphie/duc
     ranger_c = np.arange(0, Mn)
@@ -428,17 +466,20 @@ def build_dphien(J, partial, Ma, Mp, Ms, Mn):
     # dphie/dup
     J, _, _ = lax.scan(array_update, (J, n0 + 4 + 6, 9), (partial[2][0:Mn], ranger_c))[0]
     # dphie/dphiem
-    J = jax.ops.index_update(J, jax.ops.index[17, n0 + 2], partial[3][0])  # check
+    #J = jax.ops.index_update(J, jax.ops.index[17, n0 + 2], partial[3][0])  # check
+    J = J.at[17, n0 + 2].set(partial[3][0])
     J, _, _ = lax.scan(array_update, (J, n0 + 4 + 4, 17), (partial[3][1:Mn], ranger_m))[0]
     # dphie/dphiec
     J, _, _ = lax.scan(array_update, (J, n0 + 4 + 4, 11), (partial[4][0:Mn], ranger_c))[0]
     # dphie/dphiep
     ranger_p = np.arange(1, Mn)
     J, _, _ = lax.scan(array_update, (J, n0 + 4 + 4, 5), (partial[5][0:Mn - 1], ranger_p))[0]
-    J = jax.ops.index_update(J, jax.ops.index[7, n0 + 4 + 6*Mn + 2], partial[5][Mn - 1])
+    #J = jax.ops.index_update(J, jax.ops.index[7, n0 + 4 + 6*Mn + 2], partial[5][Mn - 1])
+    J = J.at[7, n0 + 4 + 6*Mn + 2].set(partial[5][Mn - 1])
 
     # dphiep/dTm
-    J = jax.ops.index_update(J, jax.ops.index[16, n0 + 3], partial[6][0])
+    #J = jax.ops.index_update(J, jax.ops.index[16, n0 + 3], partial[6][0])
+    J = J.at[16, n0 + 3].set(partial[6][0])
     J, _, _ = lax.scan(array_update, (J, 5 + 4 + n0, 16), (partial[6][1:Mn], ranger_m))[0]
 
     # dphiep/dTc
@@ -446,7 +487,8 @@ def build_dphien(J, partial, Ma, Mp, Ms, Mn):
 
     # dphiep/dTp
     J, _, _ = lax.scan(array_update, (J, n0 + 4 + 5, 4), (partial[8][0:Mp - 1], ranger_p))[0]
-    J = jax.ops.index_update(J, jax.ops.index[6, n0 + 4 + 6*Mn + 3], partial[8][Mp - 1])
+    #J = jax.ops.index_update(J, jax.ops.index[6, n0 + 4 + 6*Mn + 3], partial[8][Mp - 1])
+    J = J.at[6, n0 + 4 + 6*Mn + 3].set(partial[8][Mp - 1])
 
     # dphie/dj
     J, _, _ = lax.scan(array_update, (J, n0 + 4 + 1, 14), (partial[9][0:Mp], ranger_c))[0]
@@ -458,7 +500,8 @@ def build_dTn(J, partial, Ma, Mp, Ms, Mn):
     n0 = p0 + 4 * (Mp + 2) + 2 * Mp + 3 * (Ms + 2) + 1
     # dT/dum
     ranger_m = np.arange(0, Mn - 1)
-    J = jax.ops.index_update(J, jax.ops.index[20, n0], partial[0][0])
+    #J = jax.ops.index_update(J, jax.ops.index[20, n0], partial[0][0])
+    J = J.at[20, n0].set(partial[0][0])
     J, _, _ = lax.scan(array_update, (J, n0 + 4, 22), (partial[0][1:Mn], ranger_m))[0]
 
     # dT/duc
@@ -470,31 +513,37 @@ def build_dTn(J, partial, Ma, Mp, Ms, Mn):
 
     # dT/phiem
     J, _, _ = lax.scan(array_update, (J, n0 + 4 + 4, 18), (partial[3][1:Mn], ranger_m))[0]
-    J = jax.ops.index_update(J, jax.ops.index[18, n0 + 2], partial[3][0])
+    #J = jax.ops.index_update(J, jax.ops.index[18, n0 + 2], partial[3][0])
+    J = J.at[18, n0 + 2].set(partial[3][0])
 
     # dT/dphiep
     ranger_p = np.arange(1, Mp)
     J, _, _ = lax.scan(array_update, (J, n0 + 4 + 4, 6), (partial[4][0:Mn - 1], ranger_p))[0]
-    J = jax.ops.index_update(J, jax.ops.index[8, n0 + 4 + 6*Mn + 2 ], partial[4][Mn - 1])
+    #J = jax.ops.index_update(J, jax.ops.index[8, n0 + 4 + 6*Mn + 2 ], partial[4][Mn - 1])
+    J = J.at[8, n0 + 4 + 6*Mn + 2].set(partial[4][Mn - 1])
 
     # dT/dphism
     J, _, _ = lax.scan(array_update, (J,n0 + 4 + 3, 19), (partial[5][1:Mn], ranger_m))[0]
-    J = jax.ops.index_update(J, jax.ops.index[19, n0 + 1], partial[5][0])
+    #J = jax.ops.index_update(J, jax.ops.index[19, n0 + 1], partial[5][0])
+    J = J.at[19, n0 + 1].set(partial[5][0])
 
     # dT/dphisp
     J, _, _ = lax.scan(array_update, (J, 4 + 3 + n0, 7), (partial[6][0:Mn - 1], ranger_p))[0]
-    J = jax.ops.index_update(J, jax.ops.index[9, n0 + 4 + 6*Mn + 1 ], partial[6][Mn - 1])
+    #J = jax.ops.index_update(J, jax.ops.index[9, n0 + 4 + 6*Mn + 1 ], partial[6][Mn - 1])
+    J = J.at[9, n0 + 4 + 6*Mn + 1].set(partial[6][Mn - 1])
 
     # dT/dTm
     J, _, _ = lax.scan(array_update, (J, n0 + 4 + 5, 17), (partial[7][1:Mn], ranger_m))[0]
-    J = jax.ops.index_update(J, jax.ops.index[17, n0 + 3], partial[7][0])
+    #J = jax.ops.index_update(J, jax.ops.index[17, n0 + 3], partial[7][0])
+    J = J.at[17, n0 + 3].set(partial[7][0])
 
     # dT/dTc
     J, _, _ = lax.scan(array_update, (J, n0 + 4 + 5, 11), (partial[8][0:Mn], ranger_c))[0]
 
     # dT/dTp
     J, _, _ = lax.scan(array_update, (J, n0 + 4 + 5, 5), (partial[9][0:Mn - 1], ranger_p))[0]
-    J = jax.ops.index_update(J, jax.ops.index[7, n0 + 4 + 6*Mn + 3], partial[9][Mn])
+    #J = jax.ops.index_update(J, jax.ops.index[7, n0 + 4 + 6*Mn + 3], partial[9][Mn])
+    J = J.at[7, n0 + 4 + 6*Mn + 3].set(partial[9][Mn])
 
     # dT/dj
     J, _, _ = lax.scan(array_update, (J, n0 + 4 + 1, 15), (partial[10][0:Mn], ranger_c))[0]
@@ -510,18 +559,21 @@ def build_bc_cc(J, bc, Ma, Mp, Ms, Mn, Mz):
     row_dTa = np.array([11, 10, 16, 11, 12, 5])
     col_dTa = np.array([0, 1, Ma, 4 + p0, 3 + p0, 10 + p0])
 
-    J = jax.ops.index_update(J, jax.ops.index[row_dTa, col_dTa], bc['acc'])
+    #J = jax.ops.index_update(J, jax.ops.index[row_dTa, col_dTa], bc['acc'])
+    J = J.at[row_dTa, col_dTa].set(bc['acc'])
     row_dTz = np.array([16, 12, 11, 10, 12, 11])
     col_dTz = np.array([n0 + 4 + 6*(Mn-1)+5, n0 + 4 + 6*Mn + 3,n0 + 4 + 6*Mn + 4, n0 + 4 + 6*Mn + 5,
                         n0 + 4 + 6*Mn + 4 + Mz,n0 + 4 + 6*Mn + 4 + Mz+1 ])
-    J = jax.ops.index_update(J, jax.ops.index[row_dTz, col_dTz], bc['zcc'])
+    #J = jax.ops.index_update(J, jax.ops.index[row_dTz, col_dTz], bc['zcc'])
+    J = J.at[row_dTz, col_dTz].set(bc['zcc'])
     return J
 
 @jax.jit
 def array_update_acc(state, update_element):
     element, ind = update_element
     J, start_index, row = state
-    return (jax.ops.index_update(J, jax.ops.index[row, start_index + ind], element), start_index, row), ind
+    #return (jax.ops.index_update(J, jax.ops.index[row, start_index + ind], element), start_index, row), ind
+    return (J.at[row, start_index + ind].set(element), start_index, row), ind
 
 # @functools.partial(jax.jit, static_argnums=(2,))
 def build_dTa(J, partial, Ma):
@@ -533,7 +585,8 @@ def build_dTa(J, partial, Ma):
     # dT/dTp
     ranger_p = np.arange(0, Ma-1)
     J,_,_ = lax.scan(array_update_acc, (J, 2, 10), (partial[2][0:Ma-1], ranger_p))[0]
-    J = jax.ops.index_update(J, jax.ops.index[6,Ma + 1 + 4], partial[2][Ma-1])
+    #J = jax.ops.index_update(J, jax.ops.index[6,Ma + 1 + 4], partial[2][Ma-1])
+    J = J.at[6, Ma + 1 + 4].set(partial[2][Ma - 1])
 
     return J
 

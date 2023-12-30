@@ -92,13 +92,11 @@ class ResidualFunctionFast():
         up0 = self.up0
         Mp = self.Mp
         peq = self.peq
-        val = jax.ops.index_update(val, jax.ops.index[up0], peq.bc_zero_neumann(uvec[0], uvec[1]))
+        val = val.at[up0].set(peq.bc_zero_neumann(uvec[0], uvec[1]))
            
-        val = jax.ops.index_update(val, jax.ops.index[up0 + 1: up0 + Mp + 1],
-                           vmap(peq.electrolyte_conc)(uvec[0:Mp], uvec[1:Mp+1], uvec[2:Mp+2],
-                               Tvec[0:Mp], Tvec[1:Mp+1], Tvec[2:Mp+2], jvec[0:Mp],uvec_old[1:Mp+1]))
+        val = val.at[up0 + 1: up0 + Mp + 1].set(vmap(peq.electrolyte_conc)(uvec[0:Mp], uvec[1:Mp+1], uvec[2:Mp+2],Tvec[0:Mp], Tvec[1:Mp+1], Tvec[2:Mp+2], jvec[0:Mp],uvec_old[1:Mp+1]))
            
-        val = jax.ops.index_update(val, jax.ops.index[up0 + Mp + 1], peq.bc_u_sep_p(uvec[Mp],uvec[Mp+1],Tvec[Mp],Tvec[Mp+1],\
+        val = val.at[up0 + Mp + 1].set(peq.bc_u_sep_p(uvec[Mp],uvec[Mp+1],Tvec[Mp],Tvec[Mp+1],\
          uvec_sep[0],uvec_sep[1],Tvec_sep[0],Tvec_sep[1]))
         return val
         
@@ -111,12 +109,11 @@ class ResidualFunctionFast():
         peq = self.peq
         Mp = self.Mp
         sepq = self.sepq
-        val = jax.ops.index_update(val, jax.ops.index[usep0], peq.bc_inter_cont(uvec[0], uvec[1], uvec_pe[Mp], uvec_pe[Mp + 1]) )
+        val = val.at[usep0].set(peq.bc_inter_cont(uvec[0], uvec[1], uvec_pe[Mp], uvec_pe[Mp + 1]) )
            
-        val = jax.ops.index_update(val, jax.ops.index[usep0+ 1: usep0 + 1 + Ms], vmap(sepq.electrolyte_conc)(uvec[0:Ms], uvec[1:Ms+1], uvec[2:Ms+2], Tvec[0:Ms], Tvec[1:Ms+1], Tvec[2:Ms+2], uvec_old[1:Ms+1]))
+        val = val.at[usep0+ 1: usep0 + 1 + Ms].set(vmap(sepq.electrolyte_conc)(uvec[0:Ms], uvec[1:Ms+1], uvec[2:Ms+2], Tvec[0:Ms], Tvec[1:Ms+1], Tvec[2:Ms+2], uvec_old[1:Ms+1]))
            
-        val = jax.ops.index_update(val, jax.ops.index[usep0+ Ms + 1],
-        peq.bc_inter_cont(uvec_ne[0], uvec_ne[1], uvec[Ms], uvec[Ms+1]))
+        val = val.at[usep0+ Ms + 1].set(peq.bc_inter_cont(uvec_ne[0], uvec_ne[1], uvec[Ms], uvec[Ms+1]))
         return val
     
     
@@ -127,13 +124,11 @@ class ResidualFunctionFast():
         Mn = self.Mn
         neq = self.neq
         Ms = self.Ms
-        val = jax.ops.index_update(val, jax.ops.index[un0], neq.bc_u_sep_n(uvec[0], uvec[1], Tvec[0], Tvec[1], uvec_sep[Ms], uvec_sep[Ms+1], Tvec_sep[Ms], Tvec_sep[Ms+1]))
+        val = val.at[un0].set(neq.bc_u_sep_n(uvec[0], uvec[1], Tvec[0], Tvec[1], uvec_sep[Ms], uvec_sep[Ms+1], Tvec_sep[Ms], Tvec_sep[Ms+1]))
         
-        val = jax.ops.index_update(val, jax.ops.index[un0+ 1: un0+ 1 + Mn],
-                           vmap(neq.electrolyte_conc)(uvec[0:Mn], uvec[1:Mn+1], uvec[2:Mn+2],
-                               Tvec[0:Mn], Tvec[1:Mn+1], Tvec[2:Mn+2], jvec[0:Mn],uvec_old[1:Mn+1]))
+        val = val.at[un0+ 1: un0+ 1 + Mn].set(vmap(neq.electrolyte_conc)(uvec[0:Mn], uvec[1:Mn+1], uvec[2:Mn+2], Tvec[0:Mn], Tvec[1:Mn+1], Tvec[2:Mn+2], jvec[0:Mn],uvec_old[1:Mn+1]))
         
-        val = jax.ops.index_update(val, jax.ops.index[un0 + 1 + Mn], neq.bc_zero_neumann(uvec[Mn],uvec[Mn+1]))    
+        val = val.at[un0 + 1 + Mn].set(neq.bc_zero_neumann(uvec[Mn],uvec[Mn+1]))    
         return val
         
     #    @jax.jit
@@ -143,9 +138,9 @@ class ResidualFunctionFast():
         Ma = self.Ma
         accq = self.accq
         peq = self.peq
-        val = jax.ops.index_update(val, jax.ops.index[ta0], accq.bc_temp_a(Tvec[0], Tvec[1]))
-        val = jax.ops.index_update(val, jax.ops.index[ta0 + 1: ta0 + Ma + 1], vmap(accq.temperature)(Tvec[0:Ma], Tvec[1:Ma+1], Tvec[2:Ma+2], Tvec_old[1:Ma+1]))
-        val = jax.ops.index_update(val, jax.ops.index[ta0 + Ma + 1], peq.bc_inter_cont(Tvec[Ma], Tvec[Ma+1], Tvec_pe[0], Tvec_pe[1]))
+        val = val.at[ta0].set(accq.bc_temp_a(Tvec[0], Tvec[1]))
+        val = val.at[ta0 + 1: ta0 + Ma + 1].set(vmap(accq.temperature)(Tvec[0:Ma], Tvec[1:Ma+1], Tvec[2:Ma+2], Tvec_old[1:Ma+1]))
+        val = val.at[ta0 + Ma + 1].set(peq.bc_inter_cont(Tvec[Ma], Tvec[Ma+1], Tvec_pe[0], Tvec_pe[1]))
         return val
         
     
@@ -157,13 +152,11 @@ class ResidualFunctionFast():
         sepq = self.sepq
         Mp = self.Mp
         Ms = self.Ms
-        val = jax.ops.index_update(val, jax.ops.index[tsep0], peq.bc_inter_cont(Tvec_pe[Mp], Tvec_pe[Mp+1], Tvec[0], Tvec[1]))
+        val = val.at[tsep0].set(peq.bc_inter_cont(Tvec_pe[Mp], Tvec_pe[Mp+1], Tvec[0], Tvec[1]))
         
-        val = jax.ops.index_update(val, jax.ops.index[tsep0 + 1: tsep0 + 1 + Ms],
-        vmap(sepq.temperature)(uvec[0:Ms], uvec[1:Ms+1], uvec[2:Ms+2], phievec[0:Ms], phievec[2:Ms+2],
-        Tvec[0:Ms], Tvec[1:Ms+1], Tvec[2:Ms+2], Tvec_old[1:Ms+1]))
+        val = val.at[tsep0 + 1: tsep0 + 1 + Ms].set(vmap(sepq.temperature)(uvec[0:Ms], uvec[1:Ms+1], uvec[2:Ms+2], phievec[0:Ms], phievec[2:Ms+2], Tvec[0:Ms], Tvec[1:Ms+1], Tvec[2:Ms+2], Tvec_old[1:Ms+1]))
         
-        val = jax.ops.index_update(val, jax.ops.index[ tsep0 + 1 + Ms], peq.bc_inter_cont(Tvec[Ms], Tvec[Ms+1], Tvec_ne[0], Tvec_ne[1]))
+        val = val.at[ tsep0 + 1 + Ms].set(peq.bc_inter_cont(Tvec[Ms], Tvec[Ms+1], Tvec_ne[0], Tvec_ne[1]))
         return val
 
     #    @jax.jit
@@ -174,9 +167,9 @@ class ResidualFunctionFast():
         Mz = self.Mz
         zccq = self.zccq
         neq = self.neq
-        val = jax.ops.index_update(val, jax.ops.index[tz0], neq.bc_inter_cont(Tvec_ne[Mn], Tvec_ne[Mn+1], Tvec[0], Tvec[1]))
-        val = jax.ops.index_update(val, jax.ops.index[tz0+1:tz0 + 1 + Mz], vmap(zccq.temperature)(Tvec[0:Mz], Tvec[1:Mz+1], Tvec[2:Mz+2], Tvec_old[1:Mz+1]))
-        val = jax.ops.index_update(val, jax.ops.index[tz0+Mz+1], zccq.bc_temp_z(Tvec[Mz], Tvec[Mz+1]))
+        val = val.at[tz0].set(neq.bc_inter_cont(Tvec_ne[Mn], Tvec_ne[Mn+1], Tvec[0], Tvec[1]))
+        val = val.at[tz0+1:tz0 + 1 + Mz].set(vmap(zccq.temperature)(Tvec[0:Mz], Tvec[1:Mz+1], Tvec[2:Mz+2], Tvec_old[1:Mz+1]))
+        val = val.at[tz0+Mz+1].set(zccq.bc_temp_z(Tvec[Mz], Tvec[Mz+1]))
         return val
         
     #    @jax.jit
@@ -185,13 +178,13 @@ class ResidualFunctionFast():
         phiep0 = self.phiep0
         peq = self.peq
         Mp = self.Mp
-        val = jax.ops.index_update(val, jax.ops.index[phiep0], peq.bc_zero_neumann(phievec[0], phievec[1]))
+        val = val.at[phiep0].set(peq.bc_zero_neumann(phievec[0], phievec[1]))
         
-        val = jax.ops.index_update(val, jax.ops.index[phiep0 + 1: phiep0 + Mp + 1], vmap(peq.electrolyte_poten)(uvec[0:Mp], uvec[1:Mp+1], uvec[2:Mp+2],
+        val = val.at[phiep0 + 1: phiep0 + Mp + 1].set(vmap(peq.electrolyte_poten)(uvec[0:Mp], uvec[1:Mp+1], uvec[2:Mp+2],
         phievec[0:Mp],phievec[1:Mp+1], phievec[2:Mp+2], Tvec[0:Mp], Tvec[1:Mp+1], Tvec[2:Mp+2], jvec[0:Mp]))
         
            
-        val = jax.ops.index_update(val, jax.ops.index[phiep0 + Mp+1], peq.bc_phie_p(phievec[Mp], phievec[Mp+1],  phievec_sep[0], phievec_sep[1], \
+        val = val.at[phiep0 + Mp+1].set(peq.bc_phie_p(phievec[Mp], phievec[Mp+1],  phievec_sep[0], phievec_sep[1], \
                            uvec[Mp], uvec[Mp+1], uvec_sep[0], uvec_sep[1],\
                            Tvec[Mp], Tvec[Mp+1], Tvec_sep[0], Tvec_sep[1]))
         return val
@@ -206,11 +199,11 @@ class ResidualFunctionFast():
         Ms = self.Ms
         neq = self.neq
         Mp = self.Mp
-        val = jax.ops.index_update(val, jax.ops.index[phiesep0], peq.bc_inter_cont(phievec_pe[Mp], phievec_pe[Mp+1], phievec[0], phievec[1]))
+        val = val.at[phiesep0].set(peq.bc_inter_cont(phievec_pe[Mp], phievec_pe[Mp+1], phievec[0], phievec[1]))
         
-        val = jax.ops.index_update(val, jax.ops.index[phiesep0 + 1: phiesep0 + Ms + 1], vmap(sepq.electrolyte_poten)(uvec[0:Ms], uvec[1:Ms+1], uvec[2:Ms+2], phievec[0:Ms], phievec[1:Ms+1], phievec[2:Ms+2], Tvec[0:Ms], Tvec[1:Ms+1], Tvec[2:Ms+2]))
+        val = val.at[phiesep0 + 1: phiesep0 + Ms + 1].set(vmap(sepq.electrolyte_poten)(uvec[0:Ms], uvec[1:Ms+1], uvec[2:Ms+2], phievec[0:Ms], phievec[1:Ms+1], phievec[2:Ms+2], Tvec[0:Ms], Tvec[1:Ms+1], Tvec[2:Ms+2]))
         
-        val = jax.ops.index_update(val, jax.ops.index[phiesep0 + Ms+1], neq.bc_inter_cont(phievec_ne[0], phievec_ne[1], phievec[Ms], phievec[Ms+1]))
+        val = val.at[phiesep0 + Ms+1].set(neq.bc_inter_cont(phievec_ne[0], phievec_ne[1], phievec[Ms], phievec[Ms+1]))
         return val
         
     #    @jax.jit
@@ -221,14 +214,14 @@ class ResidualFunctionFast():
         Mn = self.Mn
         Ms = self.Ms
         
-        val = jax.ops.index_update(val, jax.ops.index[phien0], neq.bc_phie_n(phievec[0], phievec[1], phievec_sep[Ms], phievec_sep[Ms+1],\
+        val = val.at[phien0].set(neq.bc_phie_n(phievec[0], phievec[1], phievec_sep[Ms], phievec_sep[Ms+1],\
                            uvec[0], uvec[1], uvec_sep[Ms], uvec_sep[Ms+1], \
                            Tvec[0], Tvec[1], Tvec_sep[Ms], Tvec_sep[Ms+1]))
         
-        val = jax.ops.index_update(val, jax.ops.index[phien0 + 1: phien0 + Mn + 1], vmap(neq.electrolyte_poten)(uvec[0:Mn], uvec[1:Mn+1], uvec[2:Mn+2],
+        val = val.at[phien0 + 1: phien0 + Mn + 1].set(vmap(neq.electrolyte_poten)(uvec[0:Mn], uvec[1:Mn+1], uvec[2:Mn+2],
         phievec[0:Mn],phievec[1:Mn+1], phievec[2:Mn+2], Tvec[0:Mn], Tvec[1:Mn+1], Tvec[2:Mn+2], jvec[0:Mn]))
         
-        val = jax.ops.index_update(val, jax.ops.index[phien0 + Mn+1], neq.bc_zero_dirichlet(phievec[Mn], phievec[Mn+1]))
+        val = val.at[phien0 + Mn+1].set(neq.bc_zero_dirichlet(phievec[Mn], phievec[Mn+1]))
         return val
         
     
@@ -243,16 +236,16 @@ class ResidualFunctionFast():
         phisn0  = self.phisn0
         neq = self.neq
         Mn = self.Mn
-        val = jax.ops.index_update(val, jax.ops.index[phisp0], peq.bc_phis(phis_pe[0], phis_pe[1], self.Iapp))
-        #    val = jax.ops.index_update(val, jax.ops.index[phisp0], peq.bc_zero_dirichlet(phis_pe[0], phis_pe[1]))
-        val = jax.ops.index_update(val, jax.ops.index[phisp0 + 1: phisp0 + Mp+1], vmap(peq.solid_poten)(phis_pe[0:Mp], phis_pe[1:Mp+1], phis_pe[2:Mp+2], jvec_pe[0:Mp]))
-        val = jax.ops.index_update(val, jax.ops.index[phisp0 + Mp+1], peq.bc_phis(phis_pe[Mp], phis_pe[Mp+1], 0) )
-        #    val = jax.ops.index_update(val, jax.ops.index[phisp0 + Mp+1], peq.bc_zero_dirichlet(phis_pe[Mp], phis_pe[Mp+1]) )
+        val = val.at[phisp0].set(peq.bc_phis(phis_pe[0], phis_pe[1], self.Iapp))
+        #    val = val.at[phisp0].set(peq.bc_zero_dirichlet(phis_pe[0], phis_pe[1]))
+        val = val.at[phisp0 + 1: phisp0 + Mp+1].set(vmap(peq.solid_poten)(phis_pe[0:Mp], phis_pe[1:Mp+1], phis_pe[2:Mp+2], jvec_pe[0:Mp]))
+        val = val.at[phisp0 + Mp+1].set(peq.bc_phis(phis_pe[Mp], phis_pe[Mp+1], 0) )
+        #    val = val.at[phisp0 + Mp+1].set(peq.bc_zero_dirichlet(phis_pe[Mp], phis_pe[Mp+1]) )
         
-        val = jax.ops.index_update(val, jax.ops.index[phisn0], neq.bc_phis(phis_ne[0], phis_ne[1], 0))
-        val = jax.ops.index_update(val, jax.ops.index[phisn0 + 1: phisn0 + Mn +1], vmap(neq.solid_poten)(phis_ne[0:Mn], phis_ne[1:Mn+1], phis_ne[2:Mn+2], jvec_ne[0:Mn]))
-        val = jax.ops.index_update(val, jax.ops.index[phisn0 + Mn+1], neq.bc_phis(phis_ne[Mn], phis_ne[Mn+1], self.Iapp))
-        #    val = jax.ops.index_update(val, jax.ops.index[phisn0 + Mn+1], neq.bc_zero_dirichlet(phis_ne[Mn], phis_ne[Mn+1]))
+        val = val.at[phisn0].set(neq.bc_phis(phis_ne[0], phis_ne[1], 0))
+        val = val.at[phisn0 + 1: phisn0 + Mn +1].set(vmap(neq.solid_poten)(phis_ne[0:Mn], phis_ne[1:Mn+1], phis_ne[2:Mn+2], jvec_ne[0:Mn]))
+        val = val.at[phisn0 + Mn+1].set(neq.bc_phis(phis_ne[Mn], phis_ne[Mn+1], self.Iapp))
+        #    val = val.at[phisn0 + Mn+1].set(neq.bc_zero_dirichlet(phis_ne[Mn], phis_ne[Mn+1]))
         return val
     
     #    @jax.jit
@@ -262,14 +255,14 @@ class ResidualFunctionFast():
         Ma = self.Ma
         peq = self.peq
         Mp = self.Mp
-        val = jax.ops.index_update(val, jax.ops.index[tp0], peq.bc_temp_ap(Tvec_acc[Ma], Tvec_acc[Ma+1], Tvec[0], Tvec[1]))
+        val = val.at[tp0].set(peq.bc_temp_ap(Tvec_acc[Ma], Tvec_acc[Ma+1], Tvec[0], Tvec[1]))
         
-        val = jax.ops.index_update(val, jax.ops.index[tp0 + 1: tp0 + Mp + 1], vmap(peq.temperature_fast)(uvec[0:Mp], uvec[1:Mp+1], uvec[2:Mp+2],\
+        val = val.at[tp0 + 1: tp0 + Mp + 1].set(vmap(peq.temperature_fast)(uvec[0:Mp], uvec[1:Mp+1], uvec[2:Mp+2],\
                            phievec[0:Mp], phievec[2:Mp+2], phisvec[0:Mp], phisvec[2:Mp+2], \
                            Tvec[0:Mp], Tvec[1:Mp+1], Tvec[2:Mp+2], \
                            jvec[0:Mp], etavec[0:Mp], cs_pe1, gamma_p, peq.cmax*np.ones(Mp), Tvec_old[1:Mp+1]))
         
-        val = jax.ops.index_update(val, jax.ops.index[tp0 + Mp + 1], peq.bc_temp_ps(Tvec[Mp], Tvec[Mp+1], Tvec_sep[0], Tvec_sep[1]))
+        val = val.at[tp0 + Mp + 1].set(peq.bc_temp_ps(Tvec[Mp], Tvec[Mp+1], Tvec_sep[0], Tvec_sep[1]))
         return val
     
     
@@ -280,14 +273,14 @@ class ResidualFunctionFast():
         Ms = self.Ms
         neq = self.neq
         Mn = self.Mn
-        val = jax.ops.index_update(val, jax.ops.index[ tn0], neq.bc_temp_sn(Tvec_sep[Ms], Tvec_sep[Ms+1], Tvec[0], Tvec[1]))
+        val = val.at[ tn0].set(neq.bc_temp_sn(Tvec_sep[Ms], Tvec_sep[Ms+1], Tvec[0], Tvec[1]))
         
-        val = jax.ops.index_update(val, jax.ops.index[tn0 + 1: tn0+ 1 + Mn], vmap(neq.temperature_fast)(uvec[0:Mn], uvec[1:Mn+1], uvec[2:Mn+2],\
+        val = val.at[tn0 + 1: tn0+ 1 + Mn].set(vmap(neq.temperature_fast)(uvec[0:Mn], uvec[1:Mn+1], uvec[2:Mn+2],\
                            phievec[0:Mn], phievec[2:Mn+2], phisvec[0:Mn], phisvec[2:Mn+2], \
                            Tvec[0:Mn], Tvec[1:Mn+1], Tvec[2:Mn+2], \
                            jvec[0:Mn], etavec[0:Mn], cs_ne1, gamma_n, neq.cmax*np.ones(Mn), Tvec_old[1:Mn+1]))
         
-        val = jax.ops.index_update(val, jax.ops.index[tn0+ 1 + Mn], neq.bc_temp_n(Tvec[Mn], Tvec[Mn+1], Tvec_zcc[0], Tvec_zcc[1]))
+        val = val.at[tn0+ 1 + Mn].set(neq.bc_temp_n(Tvec[Mn], Tvec[Mn+1], Tvec_zcc[0], Tvec_zcc[1]))
         return val
         
     
@@ -300,8 +293,8 @@ class ResidualFunctionFast():
         jn0  = self.jn0
         neq = self.neq
         Mn = self.Mn
-        val = jax.ops.index_update(val, jax.ops.index[jp0:jp0 + Mp], vmap(peq.ionic_flux_fast)(jvec_pe, uvec_pe[1:Mp+1], Tvec_pe[1:Mp+1], eta_pe, cs_pe1, gamma_p, peq.cmax*np.ones(Mp)))
-        val = jax.ops.index_update(val, jax.ops.index[jn0: jn0 + Mn], vmap(neq.ionic_flux_fast)(jvec_ne, uvec_ne[1:Mn+1], Tvec_ne[1:Mn+1], eta_ne,cs_ne1, gamma_n, neq.cmax*np.ones(Mn)))
+        val = val.at[jp0:jp0 + Mp].set(vmap(peq.ionic_flux_fast)(jvec_pe, uvec_pe[1:Mp+1], Tvec_pe[1:Mp+1], eta_pe, cs_pe1, gamma_p, peq.cmax*np.ones(Mp)))
+        val = val.at[jn0: jn0 + Mn].set(vmap(neq.ionic_flux_fast)(jvec_ne, uvec_ne[1:Mn+1], Tvec_ne[1:Mn+1], eta_ne,cs_ne1, gamma_n, neq.cmax*np.ones(Mn)))
         return val
     
     #    @jax.jit
@@ -310,8 +303,8 @@ class ResidualFunctionFast():
         etap0 = self.etap0
         etan0 = self.etan0
         Mp = self.Mp; Mn = self.Mn; peq=self.peq; neq=self.neq; 
-        val = jax.ops.index_update(val, jax.ops.index[etap0:etap0 + Mp], vmap(peq.over_poten_fast)(eta_pe, phis_pe[1:Mp+1], phie_pe[1:Mp+1], Tvec_pe[1:Mp+1], jvec_pe, cs_pe1, gamma_p, peq.cmax*np.ones(Mp)))
-        val = jax.ops.index_update(val, jax.ops.index[etan0: etan0 + Mn], vmap(neq.over_poten_fast)(eta_ne, phis_ne[1:Mn+1], phie_ne[1:Mn+1], Tvec_ne[1:Mn+1],jvec_ne, cs_ne1, gamma_n, neq.cmax*np.ones(Mn)))
+        val = val.at[etap0:etap0 + Mp].set(vmap(peq.over_poten_fast)(eta_pe, phis_pe[1:Mp+1], phie_pe[1:Mp+1], Tvec_pe[1:Mp+1], jvec_pe, cs_pe1, gamma_p, peq.cmax*np.ones(Mp)))
+        val = val.at[etan0: etan0 + Mn].set(vmap(neq.over_poten_fast)(eta_ne, phis_ne[1:Mn+1], phie_ne[1:Mn+1], Tvec_ne[1:Mn+1],jvec_ne, cs_ne1, gamma_n, neq.cmax*np.ones(Mn)))
         return val
 
 

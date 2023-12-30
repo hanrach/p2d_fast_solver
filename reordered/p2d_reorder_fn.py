@@ -2,11 +2,13 @@ import functools
 import timeit
 
 import jax
-import model.coeffs as coeffs
-from model.p2d_param import get_battery_sections
 from jax import vmap
 import jax.numpy as np
 import numpy as onp
+from tqdm import trange
+
+import model.coeffs as coeffs
+from model.p2d_param import get_battery_sections
 from model.settings import Tref
 from reordered.p2d_reorder_newton import newton, process_y, reorder_vec
 from utils.reorder import reorder_tot
@@ -14,14 +16,16 @@ from utils.unpack import unpack_vars
 
 
 
-def p2d_reorder_fn(Np, Nn, Mp, Mn, Ms, Ma, Mz, delta_t, lu_pe, lu_ne, temp_p, temp_n, gamma_p_vec, gamma_n_vec, fn_fast, jac_fn,  Iapp, Tf, tol=1e-7):
+def p2d_reorder_fn(Np, Nn, Mp, Mn, Ms, Ma, Mz, delta_t, lu_pe, lu_ne, temp_p, temp_n, gamma_p_vec, gamma_n_vec, fn_fast, jac_fn,  Iapp, Tf=3520, tol=1e-7):
     start0 = timeit.default_timer()
     peq, neq, sepq, accq, zccq = get_battery_sections(Np, Nn, Mp, Ms, Mn, Ma, Mz, delta_t, Iapp)
 
     @jax.jit
     def cmat_format_p(cmat):
-        val = jax.ops.index_update(cmat, jax.ops.index[0:Mp * (Np + 2):Np + 2], 0)
-        val = jax.ops.index_update(val, jax.ops.index[Np + 1:Mp * (Np + 2):Np + 2], 0)
+        #val = jax.ops.index_update(cmat, jax.ops.index[0:Mp * (Np + 2):Np + 2], 0)
+        val = cmat.at[0:Mp * (Np + 2):Np + 2].set(0)
+        #val = jax.ops.index_update(val, jax.ops.index[Np + 1:Mp * (Np + 2):Np + 2], 0)
+        val = val.at[Np + 1:Mp * (Np + 2):Np + 2].set(0)
         #        for i in range(0,M):
         #            val = jax.ops.index_update(val, jax.ops.index[i*(N+2)], 0)
         #            val = jax.ops.index_update(val, jax.ops.index[i*(N+2)+N+1],0)
@@ -29,8 +33,10 @@ def p2d_reorder_fn(Np, Nn, Mp, Mn, Ms, Ma, Mz, delta_t, lu_pe, lu_ne, temp_p, te
 
     @jax.jit
     def cmat_format_n(cmat):
-        val = jax.ops.index_update(cmat, jax.ops.index[0:Mn * (Nn + 2):Nn + 2], 0)
-        val = jax.ops.index_update(val, jax.ops.index[Nn + 1:Mn * (Nn + 2):Nn + 2], 0)
+        #val = jax.ops.index_update(cmat, jax.ops.index[0:Mn * (Nn + 2):Nn + 2], 0)
+        val = cmat.at[0:Mn * (Nn + 2):Nn + 2].set(0)
+        #val = jax.ops.index_update(val, jax.ops.index[Nn + 1:Mn * (Nn + 2):Nn + 2], 0)
+        val = cmat.at[Nn + 1:Mn * (Nn + 2):Nn + 2].set(0)
         #        for i in range(0,M):
         #            val = jax.ops.index_update(val, jax.ops.index[i*(N+2)], 0)
         #            val = jax.ops.index_update(val, jax.ops.index[i*(N+2)+N+1],0)
@@ -137,7 +143,7 @@ def p2d_reorder_fn(Np, Nn, Mp, Mn, Ms, Ma, Mz, delta_t, lu_pe, lu_ne, temp_p, te
 
     extra=0
     tot_newton=0
-    for i in range(0, int(steps)):
+    for i in trange(0, int(steps)):
         prep = timeit.default_timer()
         cmat_rhs_pe = cmat_format_p(cmat_pe).block_until_ready()
         cmat_rhs_ne = cmat_format_n(cmat_ne).block_until_ready()

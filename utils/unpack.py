@@ -1,8 +1,10 @@
 
-import jax.numpy as np
-import jax
-from jax.lax import dynamic_slice
 from functools import partial
+
+import jax
+import jax.numpy as np
+from jax.lax import dynamic_slice
+
 
 @partial(jax.jit, static_argnums=(1,2,3,4,5,6,7,))
 def unpack(U, Mp, Np, Mn, Nn, Ms, Ma, Mz):
